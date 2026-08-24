@@ -1,0 +1,1166 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محاكي اللوجستيات المتكامل - WOW Pro Edition v10</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    
+    <style>
+        :root {
+            --bg-color: #0b1329;
+            --card-bg: #131b31;
+            --sidebar-bg: #090e1c;
+            --accent: #3b82f6;
+            --accent-hover: #2563eb;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --purple: #8b5cf6;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #1e293b;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); display: flex; min-height: 100vh; overflow-x: hidden; }
+
+        .sidebar {
+            width: 280px; background-color: var(--sidebar-bg); border-left: 1px solid var(--border-color);
+            display: flex; flex-direction: column; padding: 20px 12px; z-index: 10;
+        }
+
+        .brand { font-size: 1.1rem; font-weight: 800; color: var(--accent); text-align: center; margin-bottom: 15px; display:flex; align-items:center; justify-content:center; gap:8px; }
+        .brand input { background: transparent; border: 1px dashed var(--accent); color: white; font-weight: 800; font-size: 1.1rem; width: 160px; text-align: center; border-radius: 6px; padding: 2px; }
+
+        .level-container {
+            background: rgba(139, 92, 246, 0.15); border: 1px solid var(--purple); border-radius: 10px;
+            padding: 10px; margin-bottom: 15px; text-align: center;
+        }
+        .level-val { font-size: 1.1rem; font-weight: 800; color: var(--purple); }
+        .xp-bar-bg { background: var(--bg-color); height: 8px; border-radius: 4px; overflow: hidden; margin-top: 6px; border: 1px solid var(--border-color); }
+        .xp-bar-fill { background: var(--purple); height: 100%; width: 0%; transition: width 0.3s; }
+
+        .menu { list-style: none; display: flex; flex-direction: column; gap: 6px; }
+        .menu-item button {
+            width: 100%; display: flex; align-items: center; justify-content: space-between;
+            padding: 10px 14px; background: transparent; color: var(--text-muted);
+            border: none; border-radius: 8px; font-weight: 600; font-size: 0.88rem; cursor: pointer;
+            transition: all 0.2s; text-align: right;
+        }
+        .menu-item.active button, .menu-item button:hover { background-color: var(--accent); color: white; }
+        .menu-item.locked button { opacity: 0.5; cursor: not-allowed; }
+
+        .badge-lvl { font-size: 0.7rem; background: rgba(239, 68, 68, 0.2); color: var(--danger); padding: 2px 6px; border-radius: 4px; }
+
+        .main-wrapper { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
+        .top-bar {
+            background-color: var(--card-bg); border-bottom: 1px solid var(--border-color);
+            padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 5;
+        }
+
+        .stats-group { display: flex; gap: 10px; align-items: center; }
+        .stat-badge {
+            background-color: var(--bg-color); padding: 5px 12px; border-radius: 20px;
+            border: 1px solid var(--border-color); font-size: 0.82rem; display: flex; align-items: center; gap: 6px;
+        }
+        .stat-badge .value { font-weight: 700; color: var(--success); }
+
+        .btn-sound, .btn-reset { background: var(--bg-color); border: 1px solid var(--border-color); color: white; padding: 6px 12px; border-radius: 8px; cursor: pointer; font-size: 0.8rem; }
+        .btn-reset { border-color: var(--danger); color: var(--danger); }
+
+        .dashboard-content { padding: 20px; display: flex; flex-direction: column; gap: 15px; }
+        .tab-pane { display: none; flex-direction: column; gap: 15px; }
+        .tab-pane.active { display: flex; }
+
+        .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px; }
+        .grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+
+        .card-title { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
+        .card-value { font-size: 1.4rem; font-weight: 800; }
+
+        #real-map { height: 380px; width: 100%; border-radius: 12px; border: 1px solid var(--border-color); z-index: 1; }
+
+        .suppliers-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 10px; }
+        .supplier-card { background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
+
+        .table-container { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        .table-container th, .table-container td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--border-color); font-size: 0.82rem; }
+        .table-container th { color: var(--text-muted); font-weight: 600; }
+
+        .btn-action, .btn-buy, .btn-upgrade, .btn-fix {
+            border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: all 0.2s;
+        }
+        .btn-action { background-color: var(--accent); color: white; }
+        .btn-buy { background-color: var(--success); color: white; width: 100%; }
+        .btn-upgrade { background-color: var(--purple); color: white; width: 100%; }
+        .btn-fix { background-color: var(--warning); color: #000; }
+
+        #toast-container { position: fixed; bottom: 20px; left: 20px; z-index: 999; display: flex; flex-direction: column; gap: 8px; pointer-events: none; }
+        .toast-msg {
+            background-color: var(--card-bg); border: 1px solid var(--accent); color: var(--text-main);
+            padding: 10px 16px; border-radius: 8px; box-shadow: 0 5px 15px rgba(0,0,0,0.5); font-size: 0.85rem; font-weight: 600;
+            display: flex; align-items: center; gap: 8px; max-width: 340px; pointer-events: auto;
+        }
+        .toast-msg.success { border-color: var(--success); }
+        .toast-msg.danger { border-color: var(--danger); }
+
+        .road-badge { font-size: 0.75rem; padding: 2px 6px; border-radius: 4px; font-weight: 700; }
+        .road-flat { background: rgba(59, 130, 246, 0.2); color: var(--accent); }
+        .road-offroad { background: rgba(239, 68, 68, 0.2); color: var(--danger); }
+        .cargo-cold { background: rgba(6, 182, 212, 0.2); color: #06b6d4; }
+        .cargo-hazmat { background: rgba(245, 158, 11, 0.2); color: var(--warning); }
+
+        .active-mission-item {
+            background: var(--bg-color); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color);
+            display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;
+        }
+
+        .event-modal {
+            position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7);
+            display: none; justify-content: center; align-items: center; z-index: 1000;
+        }
+        .event-content {
+            background: var(--card-bg); border: 2px solid var(--warning); border-radius: 12px;
+            padding: 20px; width: 90%; max-width: 420px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+        }
+
+        .truck-icon-marker { font-size: 1.8rem; text-align: center; line-height: 1; filter: drop-shadow(0px 3px 5px rgba(0,0,0,0.7)); }
+        .rival-icon-marker { font-size: 1.5rem; text-align: center; opacity: 0.85; filter: grayscale(30%); }
+
+        .achievement-card {
+            background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px;
+            padding: 12px; display: flex; justify-content: space-between; align-items: center;
+        }
+        .achievement-card.completed { border-color: var(--success); background: rgba(16, 185, 129, 0.08); }
+    </style>
+</head>
+<body>
+
+    <div id="toast-container"></div>
+
+    <div class="event-modal" id="event-modal">
+        <div class="event-content">
+            <h3 id="event-title" style="color:var(--warning); margin-bottom:10px;">⚠️ حادث طارئ في الطريق!</h3>
+            <p id="event-desc" style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">تعرضت إحدى الشاحنات لثقب في الإطار.</p>
+            <div style="display:flex; gap:10px; justify-content:center;" id="event-actions"></div>
+        </div>
+    </div>
+
+    <aside class="sidebar">
+        <div class="brand">
+            📦 <input type="text" id="company-name-input" value="شركة اللوجستيات" onchange="updateCompanyName(this.value)">
+        </div>
+
+        <div class="level-container">
+            <div style="font-size:0.8rem; color:var(--text-muted);">المستوى والنقاط</div>
+            <div class="level-val" id="player-level">المستوى 1</div>
+            <div class="xp-bar-bg"><div class="xp-bar-fill" id="player-xp-fill"></div></div>
+            <div style="font-size: 0.75rem; color: var(--text-muted); margin-top: 4px;" id="xp-text">0 / 500 XP</div>
+            <div style="font-size:0.75rem; color:var(--purple); font-weight:bold; margin-top:4px;" id="skill-points-text">نقاط المهارة: 0</div>
+        </div>
+
+        <ul class="menu">
+            <li class="menu-item active"><button onclick="switchTab('pane-dashboard', this)"><span>🗺️ الخريطة والطقس الحقيقي</span></button></li>
+            <li class="menu-item"><button onclick="switchTab('pane-skills', this)"><span>🌟 شجرة المهارات (Skill Tree)</span></button></li>
+            <li class="menu-item" id="menu-customization"><button onclick="switchTab('pane-customization', this)"><span>🎨 التعديل والتخصيص</span> <span class="badge-lvl" id="badge-lvl2">Lvl 2</span></button></li>
+            <li class="menu-item" id="menu-branches"><button onclick="switchTab('pane-branches', this)"><span>🏢 الفروع والمستودعات</span> <span class="badge-lvl" id="badge-lvl5">Lvl 5</span></button></li>
+            <li class="menu-item"><button onclick="switchTab('pane-achievements', this)"><span>🏆 قائمة الإنجازات</span></button></li>
+            <li class="menu-item"><button onclick="switchTab('pane-suppliers', this)"><span>🏭 شراء الموارد والوقود</span></button></li>
+            <li class="menu-item"><button onclick="switchTab('pane-fleet', this)"><span>🚚 أسطول الشاحنات</span></button></li>
+            <li class="menu-item"><button onclick="switchTab('pane-drivers', this)"><span>👨‍✈️ السائقين والرواتب</span></button></li>
+            <li class="menu-item"><button onclick="switchTab('pane-contracts', this)"><span>🛍️ عقود النقل</span></button></li>
+            <li class="menu-item"><button onclick="switchTab('pane-upgrades', this)"><span>🚀 التوسعة والمعرض</span></button></li>
+        </ul>
+    </aside>
+
+    <div class="main-wrapper">
+        <header class="top-bar">
+            <h3 id="current-page-title">تتبع الحركة والطقس المباشر</h3>
+            <div class="stats-group">
+                <button class="btn-sound" onclick="toggleAudio()"><span id="sound-icon">🔊</span> الصوت: مفعل</button>
+                <button class="btn-reset" onclick="resetStuckTrucks()">🔧 إزالة تعليق الرحلات</button>
+                <div class="stat-badge"><span>⛽ الوقود:</span><span class="value" id="stat-fuel-price">$1.8 / لتر</span></div>
+                <div class="stat-badge"><span>💰 الخزينة:</span><span class="value" id="stat-money">$0</span></div>
+            </div>
+        </header>
+
+        <main class="dashboard-content">
+
+            <!-- 1. Dashboard & Real Map -->
+            <div id="pane-dashboard" class="tab-pane active">
+                <div class="grid-cards">
+                    <div class="card">
+                        <div class="card-title">مخزون البضائع</div>
+                        <div class="card-value"><span id="wh-used">0</span> / <span id="wh-capacity">0</span> طن</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">السائقين المعينين</div>
+                        <div class="card-value" id="drivers-status-card">0 / 0</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">العمليات الناجحة</div>
+                        <div class="card-value" id="completed-jobs-card" style="color: var(--success);">0</div>
+                    </div>
+                    <div class="card">
+                        <div class="card-title">الطقس الحقيقي</div>
+                        <div class="card-value" id="cairo-weather-card" style="font-size:1.1rem; color:var(--warning);">☀️ مشمس</div>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
+                        <h3>🗺️ خريطة الملاحة الحية والمنافسين 🏎️</h3>
+                        <span style="font-size:0.8rem; color:var(--text-muted);" id="market-status-badge">📈 البورصة: مستقرة</span>
+                    </div>
+                    <div id="real-map"></div>
+                </div>
+
+                <div class="card">
+                    <h3>🚛 الشحنات الجارية في الطريق حالياً</h3>
+                    <div id="active-missions-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
+                        <div style="color:var(--text-muted); text-align:center;">لا توجد رحلات نشطة الآن</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 2. Skill Tree -->
+            <div id="pane-skills" class="tab-pane">
+                <div class="card">
+                    <h3>🌟 شجرة تطوير مهارات الشركة</h3>
+                    <div style="display:flex; flex-direction:column; gap:12px; margin-top:15px;" id="skills-list"></div>
+                </div>
+            </div>
+
+            <!-- 3. Customization (Lvl 2) -->
+            <div id="pane-customization" class="tab-pane">
+                <div class="card">
+                    <h3>🎨 تعديل وترقية أداء الشاحنات (Level 2+)</h3>
+                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">قم بترقية خزان الوقود والمحرك لتقليل زمن الرحلات وتغيير مظهر الشاحنة:</p>
+                    <div id="customization-trucks-list" style="display:flex; flex-direction:column; gap:12px;"></div>
+                </div>
+            </div>
+
+            <!-- 4. Branches (Lvl 5) -->
+            <div id="pane-branches" class="tab-pane">
+                <div class="card">
+                    <h3>🏢 التوسع وإدارة الفروع الإقليمية (Level 5+)</h3>
+                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">فتح فروع في المدن البعيدة يقلل تكاليف الوقود للشحنات القادمة منها بنسبة 40%:</p>
+                    <div class="suppliers-grid" id="branches-list"></div>
+                </div>
+            </div>
+
+            <!-- 5. Achievements -->
+            <div id="pane-achievements" class="tab-pane">
+                <div class="card">
+                    <h3>🏆 قائمة الإنجازات والمكافآت</h3>
+                    <div id="achievements-list" style="display:flex; flex-direction:column; gap:10px; margin-top:15px;"></div>
+                </div>
+            </div>
+
+            <!-- 6. Suppliers -->
+            <div id="pane-suppliers" class="tab-pane">
+                <div class="card">
+                    <h3>🏭 شراء الموارد للبضائع</h3>
+                    <div class="suppliers-grid" id="suppliers-list"></div>
+                </div>
+            </div>
+
+            <!-- 7. Fleet -->
+            <div id="pane-fleet" class="tab-pane">
+                <div class="card">
+                    <h3>🚚 حالة أسطول الشاحنات والصيانة والوقود</h3>
+                    <div id="trucks-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
+                </div>
+            </div>
+
+            <!-- 8. Drivers -->
+            <div id="pane-drivers" class="tab-pane">
+                <div class="card">
+                    <h3>👨‍✈️ إدارة السائقين والرواتب</h3>
+                    <div style="margin-top:15px;" id="drivers-list"></div>
+                </div>
+                <div class="card">
+                    <h3>➕ توظيف سائق جديد</h3>
+                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;">رسوم التوظيف: $1,200 | الراتب الدوري: $400</p>
+                    <button class="btn-action" onclick="hireDriver()">توظيف سائق</button>
+                </div>
+            </div>
+
+            <!-- 9. Contracts -->
+            <div id="pane-contracts" class="tab-pane">
+                <div class="card">
+                    <div style="display:flex; justify-content:space-between; align-items:center;">
+                        <h3>🛍️ العقود المتاحة للتوصيل</h3>
+                        <div id="hazmat-license-status"></div>
+                    </div>
+                    <table class="table-container">
+                        <thead>
+                            <tr>
+                                <th>الوجهة / العميل</th>
+                                <th>نوع البضاعة</th>
+                                <th>الكمية</th>
+                                <th>الخصائص والطريق</th>
+                                <th>الانتهاء / الوقت</th>
+                                <th>العائد</th>
+                                <th>إرسال</th>
+                            </tr>
+                        </thead>
+                        <tbody id="contracts-list"></tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 10. Upgrades -->
+            <div id="pane-upgrades" class="tab-pane">
+                <div class="card">
+                    <h3>🏬 توسعة المستودعات</h3>
+                    <div class="suppliers-grid" id="warehouse-upgrades-list"></div>
+                </div>
+                <div class="card">
+                    <h3>🚛 معرض شراء الشاحنات</h3>
+                    <div class="suppliers-grid" id="truck-shop-list"></div>
+                </div>
+            </div>
+
+        </main>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+    <script>
+        // مفتاح حفظ موحد وثابت مع محرك استرجاع شامل لكل الحفوظات القديمة
+        const PERMANENT_SAVE_KEY = "mini_logistics_PERMANENT_MASTER_SAVE";
+        const LEGACY_SAVE_KEYS = [
+            "mini_logistics_MASTER_PLAYER_SAVE_V10",
+            "mini_logistics_MASTER_PLAYER_SAVE",
+            "mini_logistics_save_v1",
+            "mini_logistics_save"
+        ];
+
+        let audioCtx = null;
+        let audioEnabled = true;
+
+        function initAudio() { if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)(); }
+
+        function playSound(type) {
+            if (!audioEnabled) return;
+            initAudio();
+            if (!audioCtx) return;
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            const now = audioCtx.currentTime;
+
+            if (type === 'money') {
+                osc.type = 'sine'; osc.frequency.setValueAtTime(987.77, now); osc.frequency.setValueAtTime(1318.51, now + 0.08);
+                gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now); osc.stop(now + 0.35);
+            } else if (type === 'truck') {
+                osc.type = 'sawtooth'; osc.frequency.setValueAtTime(120, now); osc.frequency.linearRampToValueAtTime(220, now + 0.4);
+                gain.gain.setValueAtTime(0.15, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+            } else if (type === 'error') {
+                osc.type = 'square'; osc.frequency.setValueAtTime(150, now); osc.frequency.setValueAtTime(100, now + 0.15);
+                gain.gain.setValueAtTime(0.2, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.35);
+                osc.start(now); osc.stop(now + 0.35);
+            } else if (type === 'levelup') {
+                osc.type = 'triangle'; osc.frequency.setValueAtTime(440, now); osc.frequency.setValueAtTime(659.25, now + 0.2);
+                gain.gain.setValueAtTime(0.25, now); gain.gain.exponentialRampToValueAtTime(0.01, now + 0.5);
+                osc.start(now); osc.stop(now + 0.5);
+            }
+        }
+
+        function toggleAudio() {
+            audioEnabled = !audioEnabled;
+            document.getElementById("sound-icon").textContent = audioEnabled ? "🔊" : "🔇";
+            showToast(audioEnabled ? "تم تفعيل الأصوات 🔊" : "تم كتم الأصوات 🔇", "info");
+        }
+
+        const DEPOT_COORDS = [30.0444, 31.2357]; 
+        const DESTINATIONS = [
+            { id: "alex", name: "الإسكندرية", lat: 31.2001, lng: 29.9187, road: "flat", timeSec: 50, weather: "☀️ مشمس" },
+            { id: "suez", name: "السويس", lat: 29.9668, lng: 32.5498, road: "flat", timeSec: 45, weather: "☀️ مشمس" },
+            { id: "tanta", name: "طنطا", lat: 30.7865, lng: 31.0004, road: "flat", timeSec: 40, weather: "☀️ مشمس" },
+            { id: "siwa", name: "سيوة (الصحراء الغربية)", lat: 29.2032, lng: 25.5195, road: "offroad", timeSec: 80, weather: "☀️ مشمس" },
+            { id: "bahariya", name: "الواحات البحرية", lat: 28.3522, lng: 28.8682, road: "offroad", timeSec: 75, weather: "☀️ مشمس" },
+            { id: "hurghada", name: "الغردقة", lat: 27.2579, lng: 33.8116, road: "offroad", timeSec: 85, weather: "☀️ مشمس" }
+        ];
+
+        const SKILLS_DB = [
+            { id: "negotiator", name: "المفاوض الذكي", desc: "+15% زيادة في أرباح جميع العقود", cost: 1, levelReq: 1 },
+            { id: "eco_driver", name: "القيادة الاقتصادية", desc: "-25% تقليل في استهلاك الوقود", cost: 1, levelReq: 2 },
+            { id: "pro_garage", name: "الورشة الاحترافية", desc: "-50% خصم على تكلفة صيانة وتصليح الشاحنات", cost: 2, levelReq: 3 }
+        ];
+
+        const defaultState = {
+            companyName: "شركة اللوجستيات",
+            money: 45000,
+            level: 1,
+            xp: 0,
+            skillPoints: 0,
+            unlockedSkills: [],
+            completedJobs: 0,
+            fuelPrice: 1.8,
+            hazmatLicense: false,
+            ownedBranches: [],
+            stats: { totalIncome: 0, totalFuelCost: 0, totalSalaries: 0, totalRepairs: 0 },
+            warehouse: { capacity: 600, used: 200 },
+            trucks: [
+                { id: 1, name: "شاحنة توصيل 01", capacity: 10, status: "idle", fuel: 100, maxFuel: 100, speedLvl: 1, color: "#3b82f6", driverId: 1 },
+                { id: 2, name: "شاحنة نقل 02", capacity: 20, status: "idle", fuel: 100, maxFuel: 100, speedLvl: 1, color: "#3b82f6", driverId: null }
+            ],
+            drivers: [
+                { id: 1, name: "كابتن أحمد", salary: 400, assignedTruckId: 1 }
+            ],
+            activeMissions: [],
+            contracts: [],
+            achievements: [
+                { id: "first_run", title: "🚀 انطلاقة الأسطول", desc: "إكمال أول شحنة بنجاح", rewardMoney: 2000, rewardXP: 200, done: false },
+                { id: "reach_100k", title: "💰 مليونير اللوجستيات", desc: "الوصول برصيد الخزينة لـ $100,000", rewardMoney: 10000, rewardXP: 500, done: false },
+                { id: "fleet_4", title: "🚚 أسطول جبار", desc: "امتلاك 4 شاحنات في الشركة", rewardMoney: 15000, rewardXP: 800, done: false },
+                { id: "hazmat_master", title: "☣️ خبير المواد الخطرة", desc: "شراء رخصة نقل المواد الخطرة", rewardMoney: 5000, rewardXP: 400, done: false }
+            ]
+        };
+
+        let gameState = {};
+        let map = null;
+        let mapMarkers = {};
+        let rivalMarkers = [];
+
+        function showToast(msg, type = 'info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = `toast-msg ${type}`;
+            toast.innerHTML = `<span>${type==='success'?'✅':(type==='danger'?'❌':'⚠️')}</span> <span>${msg}</span>`;
+            container.appendChild(toast);
+            setTimeout(() => { toast.remove(); }, 3500);
+        }
+
+        // دالة الدمج الذكي للبيانات لحماية تقدم اللاعب القديم عند إضافة تحديثات جديدة
+        function mergeSaveData(defaults, loaded) {
+            if (!loaded) return JSON.parse(JSON.stringify(defaults));
+            let result = JSON.parse(JSON.stringify(defaults));
+
+            for (let key in loaded) {
+                if (loaded[key] !== undefined && loaded[key] !== null) {
+                    if (Array.isArray(loaded[key])) {
+                        if (loaded[key].length > 0) {
+                            result[key] = loaded[key];
+                        }
+                    } else if (typeof loaded[key] === 'object' && !Array.isArray(loaded[key])) {
+                        result[key] = mergeSaveData(result[key] || {}, loaded[key]);
+                    } else {
+                        result[key] = loaded[key];
+                    }
+                }
+            }
+            return result;
+        }
+
+        function safeLoadGame() {
+            let rawData = localStorage.getItem(PERMANENT_SAVE_KEY);
+
+            // بحث تلقائي في ذاكرة الحفوظات القديمة إذا لم يجد المفتاح الموحد
+            if (!rawData) {
+                for (let oldKey of LEGACY_SAVE_KEYS) {
+                    let foundData = localStorage.getItem(oldKey);
+                    if (foundData) {
+                        rawData = foundData;
+                        break;
+                    }
+                }
+            }
+
+            if (rawData) {
+                try {
+                    const parsed = JSON.parse(rawData);
+                    gameState = mergeSaveData(defaultState, parsed);
+                } catch(e) {
+                    gameState = JSON.parse(JSON.stringify(defaultState));
+                }
+            } else {
+                gameState = JSON.parse(JSON.stringify(defaultState));
+            }
+
+            saveGame();
+        }
+
+        function saveGame() {
+            try {
+                localStorage.setItem(PERMANENT_SAVE_KEY, JSON.stringify(gameState));
+            } catch(e) {
+                console.error("فشل حفظ اللعبة", e);
+            }
+        }
+
+        function updateCompanyName(val) {
+            gameState.companyName = val || "شركة اللوجستيات";
+            saveGame();
+        }
+
+        function initRealMap() {
+            if (map) return;
+            map = L.map('real-map').setView([29.5, 30.5], 6);
+            L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 18, attribution: '© OpenStreetMap' }).addTo(map);
+
+            L.marker(DEPOT_COORDS).addTo(map).bindPopup("🏢 <b>المستودع الرئيسي (القاهرة)</b>");
+
+            for(let i=0; i<3; i++) {
+                let rMarker = L.marker([29.0 + i*0.5, 30.0 + i*0.8], {
+                    icon: L.divIcon({ className: 'rival-icon-marker', html: '🏎️', iconSize: [25, 25] })
+                }).addTo(map).bindPopup(`<b>منافس تجاري #${i+1}</b>`);
+                rivalMarkers.push(rMarker);
+            }
+        }
+
+        function moveRivals() {
+            rivalMarkers.forEach((rm) => {
+                rm.setLatLng([28.5 + Math.random() * 2.8, 29.0 + Math.random() * 3.5]);
+            });
+        }
+
+        function switchTab(paneId, btnElement) {
+            if (paneId === 'pane-customization' && gameState.level < 2) { showToast("يلزم الوصول للمستوى 2 لفتح التخصيص!", "warning"); return; }
+            if (paneId === 'pane-branches' && gameState.level < 5) { showToast("يلزم الوصول للمستوى 5 لفتح إدارة الفروع!", "warning"); return; }
+
+            document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+            document.querySelectorAll('.menu-item').forEach(m => m.classList.remove('active'));
+            document.getElementById(paneId).classList.add('active');
+            btnElement.parentElement.classList.add('active');
+            document.getElementById('current-page-title').textContent = btnElement.querySelector('span').textContent;
+
+            if (paneId === 'pane-dashboard' && map) setTimeout(() => { map.invalidateSize(); }, 200);
+        }
+
+        function addXP(amount) {
+            gameState.xp += amount;
+            const xpNeeded = gameState.level * 500;
+            if (gameState.xp >= xpNeeded) {
+                gameState.xp -= xpNeeded;
+                gameState.level++;
+                gameState.skillPoints++;
+                playSound('levelup');
+                showToast(`🎉 ترقية! وصلت للمستوى ${gameState.level} (+1 نقطة مهارة)!`, 'success');
+            }
+            checkAchievements();
+            updateUI();
+        }
+
+        function unlockSkill(skillId) {
+            const sk = SKILLS_DB.find(s => s.id === skillId);
+            if(!sk) return;
+            if(gameState.skillPoints < sk.cost) { showToast("نقاط المهارة غير كافية!", 'danger'); return; }
+            if(gameState.level < sk.levelReq) { showToast(`يلزم الوصول للمستوى ${sk.levelReq}`, 'warning'); return; }
+
+            gameState.skillPoints -= sk.cost;
+            gameState.unlockedSkills.push(skillId);
+            showToast(`🌟 تم فتح مهارة: ${sk.name}`, 'success');
+            playSound('levelup');
+            updateUI();
+        }
+
+        function buyHazmatLicense() {
+            if(gameState.money < 3000) { showToast("الرصيد غير كافٍ لشراء الرخصة ($3,000)", 'danger'); return; }
+            gameState.money -= 3000;
+            gameState.hazmatLicense = true;
+            showToast("☣️ تم الحصول على رخصة نقل المواد الخطرة!", 'success');
+            checkAchievements();
+            updateUI();
+        }
+
+        function upgradeTruckEngine(truckId) {
+            const t = gameState.trucks.find(x => x.id === truckId);
+            if(!t) return;
+            const cost = t.speedLvl * 2500;
+            if(gameState.money < cost) { showToast("الرصيد غير كافٍ للترقية!", 'danger'); return; }
+            gameState.money -= cost;
+            t.speedLvl += 1;
+            showToast(`🚀 تم ترقية محرك ${t.name} إلى المستوى ${t.speedLvl}`, 'success');
+            updateUI();
+        }
+
+        function upgradeTruckTank(truckId) {
+            const t = gameState.trucks.find(x => x.id === truckId);
+            if(!t) return;
+            const cost = 1800;
+            if(gameState.money < cost) { showToast("الرصيد غير كافٍ!", 'danger'); return; }
+            gameState.money -= cost;
+            t.maxFuel = (t.maxFuel || 100) + 30;
+            t.fuel = t.maxFuel;
+            showToast(`⛽ تم زيادة سعة التانك لـ ${t.maxFuel} لتر`, 'success');
+            updateUI();
+        }
+
+        function buyBranch(destId, cost) {
+            if(gameState.money < cost) { showToast("الرصيد غير كافٍ لشراء الفرع!", 'danger'); return; }
+            gameState.money -= cost;
+            gameState.ownedBranches.push(destId);
+            showToast("🏢 تم افتتاح الفرع الجديد بنجاح!", 'success');
+            updateUI();
+        }
+
+        function checkAchievements() {
+            gameState.achievements.forEach(a => {
+                if(!a.done) {
+                    if(a.id === 'first_run' && gameState.completedJobs >= 1) a.canClaim = true;
+                    if(a.id === 'reach_100k' && gameState.money >= 100000) a.canClaim = true;
+                    if(a.id === 'fleet_4' && gameState.trucks.length >= 4) a.canClaim = true;
+                    if(a.id === 'hazmat_master' && gameState.hazmatLicense) a.canClaim = true;
+                }
+            });
+        }
+
+        function claimAchievement(id) {
+            const a = gameState.achievements.find(x => x.id === id);
+            if(a && !a.done) {
+                a.done = true;
+                a.canClaim = false;
+                gameState.money += a.rewardMoney;
+                addXP(a.rewardXP);
+                playSound('money');
+                showToast(`🏆 تم استلام جائزة: ${a.title} (+$${a.rewardMoney})`, 'success');
+                updateUI();
+            }
+        }
+
+        function hireDriver() {
+            if(gameState.money < 1200) { showToast("الرصيد غير كافٍ لتوظيف سائق ($1,200)", 'danger'); playSound('error'); return; }
+            gameState.money -= 1200;
+            gameState.drivers.push({ id: Date.now(), name: `سائق #${gameState.drivers.length + 1}`, salary: 400, assignedTruckId: null });
+            showToast("تم توظيف سائق جديد!", 'success');
+            updateUI();
+        }
+
+        function assignDriverToTruck(driverId, truckId) {
+            const driver = gameState.drivers.find(d => d.id === driverId);
+            const truck = gameState.trucks.find(t => t.id === truckId);
+
+            if(driver) {
+                gameState.trucks.forEach(t => { if(t.driverId === driverId) t.driverId = null; });
+                driver.assignedTruckId = truckId || null;
+            }
+            if(truck) {
+                gameState.drivers.forEach(d => { if(d.assignedTruckId === truckId) d.assignedTruckId = null; });
+                truck.driverId = driverId || null;
+            }
+            updateUI();
+        }
+
+        function paySalaries() {
+            const total = gameState.drivers.reduce((acc, d) => acc + d.salary, 0);
+            if(total === 0) return;
+            if(gameState.money >= total) {
+                gameState.money -= total;
+                gameState.stats.totalSalaries += total;
+                showToast(`💸 خصم رواتب السائقين (-$${total})`, 'info');
+            } else {
+                showToast("⚠️ عجز في الخزينة لدفع رواتب السائقين!", 'danger');
+                playSound('error');
+            }
+            updateUI();
+        }
+
+        function triggerRandomEvent(mission) {
+            const modal = document.getElementById("event-modal");
+            playSound('error');
+            modal.style.display = "flex";
+            document.getElementById("event-title").textContent = "⚠️ حادث طارئ في الطريق!";
+            document.getElementById("event-desc").textContent = `الشاحنة ${mission.truckName} تعطلت مؤقتاً في الطريق.`;
+            document.getElementById("event-actions").innerHTML = `
+                <button class="btn-action" onclick="resolveEvent(200)">إرسال صيانة سريعة ($200)</button>
+                <button class="btn-fix" onclick="resolveEvent(0)">الانتظار للتصليح</button>
+            `;
+        }
+
+        function resolveEvent(cost) {
+            if(cost > 0 && gameState.money >= cost) gameState.money -= cost;
+            document.getElementById("event-modal").style.display = "none";
+            updateUI();
+        }
+
+        function updateUI() {
+            document.getElementById("company-name-input").value = gameState.companyName || "شركة اللوجستيات";
+            document.getElementById("stat-money").textContent = `$${gameState.money.toLocaleString()}`;
+            document.getElementById("stat-fuel-price").textContent = `$${gameState.fuelPrice.toFixed(2)} / لتر`;
+            document.getElementById("player-level").textContent = `المستوى ${gameState.level}`;
+            document.getElementById("skill-points-text").textContent = `نقاط المهارة: ${gameState.skillPoints}`;
+
+            const xpNeeded = gameState.level * 500;
+            document.getElementById("xp-text").textContent = `${gameState.xp} / ${xpNeeded} XP`;
+            document.getElementById("player-xp-fill").style.width = `${Math.min(100, (gameState.xp / xpNeeded) * 100)}%`;
+
+            document.getElementById("wh-used").textContent = gameState.warehouse.used;
+            document.getElementById("wh-capacity").textContent = gameState.warehouse.capacity;
+            document.getElementById("completed-jobs-card").textContent = gameState.completedJobs || 0;
+
+            const assignedDrivers = gameState.drivers.filter(d => d.assignedTruckId !== null).length;
+            document.getElementById("drivers-status-card").textContent = `${assignedDrivers} / ${gameState.drivers.length}`;
+
+            document.getElementById("menu-customization").className = `menu-item ${gameState.level < 2 ? 'locked' : ''}`;
+            document.getElementById("menu-branches").className = `menu-item ${gameState.level < 5 ? 'locked' : ''}`;
+
+            const skillsListEl = document.getElementById("skills-list");
+            skillsListEl.innerHTML = "";
+            SKILLS_DB.forEach(sk => {
+                const isUnlocked = gameState.unlockedSkills.includes(sk.id);
+                skillsListEl.innerHTML += `
+                    <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong>${sk.name} ${isUnlocked ? '✅' : ''}</strong>
+                            <div style="font-size:0.8rem; color:var(--text-muted);">${sk.desc}</div>
+                        </div>
+                        ${!isUnlocked ? `<button class="btn-upgrade" style="width:auto;" onclick="unlockSkill('${sk.id}')">فتح (${sk.cost} نقطة)</button>` : ''}
+                    </div>`;
+            });
+
+            const custEl = document.getElementById("customization-trucks-list");
+            custEl.innerHTML = "";
+            gameState.trucks.forEach(t => {
+                custEl.innerHTML += `
+                    <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong>${t.name}</strong> (قوة المحرك: Lvl ${t.speedLvl || 1} | خزان: ${t.maxFuel || 100}L)
+                        </div>
+                        <div style="display:flex; gap:8px;">
+                            <button class="btn-action" onclick="upgradeTruckEngine(${t.id})">🚀 ترقية المحرك ($${(t.speedLvl || 1) * 2500})</button>
+                            <button class="btn-action" style="background:var(--purple);" onclick="upgradeTruckTank(${t.id})">⛽ توسيع الخزان ($1,800)</button>
+                        </div>
+                    </div>`;
+            });
+
+            const branchEl = document.getElementById("branches-list");
+            branchEl.innerHTML = "";
+            DESTINATIONS.forEach(d => {
+                const isOwned = gameState.ownedBranches.includes(d.id);
+                branchEl.innerHTML += `
+                    <div class="supplier-card">
+                        <h4>فرع ${d.name}</h4>
+                        <div style="font-size:0.8rem; color:var(--text-muted);">${isOwned ? '✅ ملك الشركة حالياً' : 'تكلفة التأسيس: $35,000'}</div>
+                        ${!isOwned ? `<button class="btn-buy" onclick="buyBranch('${d.id}', 35000)">تأسيس فرع ($35,000)</button>` : '<span style="color:var(--success); font-weight:bold;">نشط ويخفض الوقود 40%</span>'}
+                    </div>`;
+            });
+
+            const achEl = document.getElementById("achievements-list");
+            achEl.innerHTML = "";
+            gameState.achievements.forEach(a => {
+                achEl.innerHTML += `
+                    <div class="achievement-card ${a.done ? 'completed' : ''}">
+                        <div>
+                            <strong>${a.title} ${a.done ? '✅' : ''}</strong>
+                            <div style="font-size:0.8rem; color:var(--text-muted);">${a.desc}</div>
+                        </div>
+                        <div>
+                            ${a.done ? '<span style="color:var(--success); font-weight:bold;">مكتمل</span>' : (a.canClaim ? `<button class="btn-buy" onclick="claimAchievement('${a.id}')">استلام الجائزة ($${a.rewardMoney})</button>` : `<span style="color:var(--text-muted);">$${a.rewardMoney}</span>`)}
+                        </div>
+                    </div>`;
+            });
+
+            const truckListEl = document.getElementById("trucks-list");
+            truckListEl.innerHTML = "";
+            gameState.trucks.forEach(truck => {
+                const driver = gameState.drivers.find(d => d.id === truck.driverId);
+                truckListEl.innerHTML += `
+                    <div style="background:var(--bg-color); padding:12px; border-radius:8px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong>${truck.name}</strong> (${truck.capacity} طن)
+                            <div style="font-size:0.8rem; color:var(--text-muted);">
+                                السائق: <strong style="color:var(--purple);">${driver ? driver.name : 'بدون سائق ❌'}</strong> | الحالة: ${truck.status === 'busy' ? 'في الطريق 🚚' : (truck.status === 'broken' ? 'معطلة ⚠️' : 'جاهزة ✅')}
+                            </div>
+                        </div>
+                        <div style="display:flex; gap:10px; align-items:center;">
+                            <span style="font-size:0.85rem;">⛽ ${truck.fuel}/${truck.maxFuel || 100}%</span>
+                            ${truck.fuel < (truck.maxFuel || 100) ? `<button class="btn-action" style="background:var(--warning); color:#000;" onclick="refuelTruck(${truck.id})">تزويد وقود</button>` : ''}
+                            ${truck.status === 'broken' ? `<button class="btn-fix" onclick="repairTruck(${truck.id})">إصلاح</button>` : ''}
+                        </div>
+                    </div>`;
+            });
+
+            const driversListEl = document.getElementById("drivers-list");
+            driversListEl.innerHTML = "";
+            gameState.drivers.forEach(driver => {
+                let options = `<option value="">-- تعيين على شاحنة --</option>`;
+                gameState.trucks.forEach(t => {
+                    const isSelected = t.id === driver.assignedTruckId ? 'selected' : '';
+                    options += `<option value="${t.id}" ${isSelected}>${t.name}</option>`;
+                });
+                driversListEl.innerHTML += `
+                    <div style="background:var(--bg-color); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <strong>${driver.name}</strong>
+                            <span style="font-size:0.8rem; color:var(--text-muted); margin-right:10px;">الراتب: $${driver.salary}/دورة</span>
+                        </div>
+                        <select onchange="assignDriverToTruck(${driver.id}, this.value ? parseInt(this.value) : null)" style="background:var(--card-bg); color:white; border:1px solid var(--border-color); padding:6px; border-radius:6px;">
+                            ${options}
+                        </select>
+                    </div>`;
+            });
+
+            document.getElementById("hazmat-license-status").innerHTML = gameState.hazmatLicense ? 
+                `<span style="color:var(--success); font-weight:bold;">☣️ رخصة المواد الخطرة: مفعلة</span>` :
+                (gameState.level >= 3 ? `<button class="btn-action" style="background:var(--warning); color:#000;" onclick="buyHazmatLicense()">شراء رخصة مواد خطرة ($3,000)</button>` : `<span style="font-size:0.8rem; color:var(--text-muted);">🔒 رخصة المواد الخطرة تفتح بالمستوى 3</span>`);
+
+            const contractsTable = document.getElementById("contracts-list");
+            contractsTable.innerHTML = "";
+            gameState.contracts.forEach(c => {
+                const dest = DESTINATIONS[c.destIdx];
+                const isOffroad = dest.road === 'offroad';
+                const isCold = c.type === 'cold';
+                const isHazmat = c.type === 'hazmat';
+
+                contractsTable.innerHTML += `
+                    <tr>
+                        <td><strong>${dest.name}</strong><br><small style="color:var(--text-muted);">${c.client}</small></td>
+                        <td>${c.item}</td>
+                        <td>${c.qty} طن</td>
+                        <td>
+                            <span class="road-badge ${isOffroad ? 'road-offroad' : 'road-flat'}">${isOffroad ? '🏜️ صحراوي' : '🛣️ ممهد'}</span>
+                            ${isCold ? '<span class="road-badge cargo-cold">❄️ مبرد</span>' : ''}
+                            ${isHazmat ? '<span class="road-badge cargo-hazmat">☣️ مواد خطرة</span>' : ''}
+                        </td>
+                        <td>⏱️ ${dest.timeSec}ث ${c.ttl ? `<br><small style="color:var(--danger);">ينتهي في ${c.ttl}ث</small>` : ''}</td>
+                        <td style="color:var(--success); font-weight:700;">$${c.reward.toLocaleString()}</td>
+                        <td><button class="btn-action" onclick="dispatchTruck(${c.id})">إرسال</button></td>
+                    </tr>`;
+            });
+
+            renderMarketUI();
+            saveGame();
+        }
+
+        function completeMission(mission, dest) {
+            const truck = gameState.trucks.find(t => t.id === mission.truckId);
+            if (truck) truck.status = "idle";
+
+            gameState.activeMissions = gameState.activeMissions.filter(m => m.id !== mission.id);
+
+            if (mapMarkers[mission.id]) {
+                if (map) {
+                    map.removeLayer(mapMarkers[mission.id].marker);
+                    map.removeLayer(mapMarkers[mission.id].polyline);
+                }
+                delete mapMarkers[mission.id];
+            }
+
+            if (dest && dest.road === 'offroad' && Math.random() < 0.25) {
+                if (truck) truck.status = "broken";
+                playSound('error');
+                showToast(`⚠️ تعطلت ${mission.truckName} أثناء العودة!`, 'danger');
+            }
+
+            gameState.money += mission.reward;
+            gameState.stats.totalIncome += mission.reward;
+            gameState.completedJobs = (gameState.completedJobs || 0) + 1;
+
+            playSound('money');
+            addXP(120);
+            showToast(`🎉 وصلت الشحنة إلى ${mission.destName}! +$${mission.reward.toLocaleString()}`, 'success');
+            checkAchievements();
+            updateUI();
+        }
+
+        function scheduleMissionCompletion(mission, remainingMs) {
+            const dest = DESTINATIONS.find(d => d.name === mission.destName) || DESTINATIONS[0];
+            setTimeout(() => { completeMission(mission, dest); }, Math.max(0, remainingMs));
+        }
+
+        function restoreActiveMissions() {
+            if (!gameState.activeMissions || gameState.activeMissions.length === 0) return;
+            const now = Date.now();
+            [...gameState.activeMissions].forEach(m => {
+                const dest = DESTINATIONS.find(d => d.name === m.destName) || DESTINATIONS[0];
+                const elapsed = now - m.startTime;
+                const remaining = m.duration - elapsed;
+
+                if (remaining <= 0) {
+                    completeMission(m, dest);
+                } else {
+                    if (map) {
+                        const polyline = L.polyline([DEPOT_COORDS, [m.destLat, m.destLng]], {
+                            color: m.road === 'offroad' ? '#ef4444' : '#3b82f6', weight: 4
+                        }).addTo(map);
+
+                        const marker = L.marker(DEPOT_COORDS, {
+                            icon: L.divIcon({ className: 'truck-icon-marker', html: '🚚', iconSize: [30, 30] })
+                        }).addTo(map).bindPopup(`<b>${m.truckName}</b>`);
+
+                        mapMarkers[m.id] = { marker, polyline };
+                    }
+
+                    const truck = gameState.trucks.find(t => t.id === m.truckId);
+                    if (truck) truck.status = "busy";
+                    scheduleMissionCompletion(m, remaining);
+                }
+            });
+        }
+
+        function resetStuckTrucks() {
+            gameState.activeMissions = [];
+            gameState.trucks.forEach(t => { if (t.status === 'busy') t.status = 'idle'; });
+            for (let id in mapMarkers) {
+                if (map) {
+                    map.removeLayer(mapMarkers[id].marker);
+                    map.removeLayer(mapMarkers[id].polyline);
+                }
+            }
+            mapMarkers = {};
+            showToast("تم تحرير الشاحنات المعلقة!", "success");
+            updateUI();
+        }
+
+        function dispatchTruck(contractId) {
+            const contract = gameState.contracts.find(c => c.id === contractId);
+            if(!contract) return;
+
+            if(contract.type === 'hazmat' && !gameState.hazmatLicense) {
+                showToast("يلزم شراء رخصة المواد الخطرة أولاً!", 'danger'); playSound('error'); return;
+            }
+
+            const dest = DESTINATIONS[contract.destIdx];
+            const truck = gameState.trucks.find(t => t.status === "idle" && t.driverId !== null);
+            
+            if(!truck) { showToast("يلزم شاحنة جاهزة وبداخلها سائق معين!", 'warning'); playSound('error'); return; }
+
+            let fuelMultiplier = gameState.unlockedSkills.includes("eco_driver") ? 0.75 : 1.0;
+            if (gameState.ownedBranches.includes(dest.id)) fuelMultiplier *= 0.6; 
+
+            const neededFuel = Math.round((15 + (contract.qty / 4)) * (dest.road === 'offroad' ? 1.8 : 1.0) * fuelMultiplier);
+            if(truck.fuel < neededFuel) { showToast(`الوقود غير كافٍ! يحتاج ${neededFuel}%`, 'warning'); playSound('error'); return; }
+            if(gameState.warehouse.used < contract.qty) { showToast("المخزون بالمستودع غير كافٍ!", 'danger'); playSound('error'); return; }
+
+            gameState.warehouse.used -= contract.qty;
+            truck.fuel -= neededFuel;
+            truck.status = "busy";
+
+            let speedBonus = (truck.speedLvl || 1) * 0.1;
+            let durationSec = Math.round(dest.timeSec * (1 - speedBonus));
+            let rewardBonus = gameState.unlockedSkills.includes("negotiator") ? 1.15 : 1.0;
+            const finalReward = Math.round(contract.reward * rewardBonus);
+
+            const durationMs = durationSec * 1000;
+            const mission = {
+                id: Date.now(),
+                truckId: truck.id,
+                truckName: truck.name,
+                destName: dest.name,
+                destLat: dest.lat,
+                destLng: dest.lng,
+                road: dest.road,
+                reward: finalReward,
+                startTime: Date.now(),
+                duration: durationMs
+            };
+
+            gameState.activeMissions.push(mission);
+            gameState.contracts = gameState.contracts.filter(c => c.id !== contractId);
+
+            playSound('truck');
+
+            if (map) {
+                const polyline = L.polyline([DEPOT_COORDS, [dest.lat, dest.lng]], {
+                    color: dest.road === 'offroad' ? '#ef4444' : '#3b82f6', weight: 4
+                }).addTo(map);
+
+                const marker = L.marker(DEPOT_COORDS, {
+                    icon: L.divIcon({ className: 'truck-icon-marker', html: '🚚', iconSize: [30, 30] })
+                }).addTo(map);
+
+                mapMarkers[mission.id] = { marker, polyline };
+            }
+
+            showToast(`انطلقت ${truck.name} نحو ${dest.name}!`, 'info');
+
+            if(Math.random() < 0.20) {
+                setTimeout(() => { triggerRandomEvent(mission); }, durationMs / 2);
+            }
+
+            scheduleMissionCompletion(mission, durationMs);
+            updateUI();
+        }
+
+        function updateLiveMap() {
+            const listEl = document.getElementById("active-missions-list");
+            if (!gameState.activeMissions || gameState.activeMissions.length === 0) {
+                listEl.innerHTML = `<div style="color:var(--text-muted); text-align:center;">لا توجد رحلات نشطة الآن</div>`;
+                return;
+            }
+
+            listEl.innerHTML = "";
+            const now = Date.now();
+
+            gameState.activeMissions.forEach(m => {
+                const elapsed = now - m.startTime;
+                const progress = Math.min(1, elapsed / m.duration);
+                const remainSec = Math.max(0, Math.ceil((m.duration - elapsed) / 1000));
+
+                const currentLat = DEPOT_COORDS[0] + (m.destLat - DEPOT_COORDS[0]) * progress;
+                const currentLng = DEPOT_COORDS[1] + (m.destLng - DEPOT_COORDS[1]) * progress;
+
+                if (mapMarkers[m.id]) {
+                    mapMarkers[m.id].marker.setLatLng([currentLat, currentLng]);
+                }
+
+                listEl.innerHTML += `
+                    <div class="active-mission-item">
+                        <div><strong>🚚 ${m.truckName}</strong> ➔ <span style="color:var(--accent);">${m.destName}</span></div>
+                        <div style="font-weight:700; color:var(--warning);">⏱️ متبقي: ${remainSec} ثانية (${Math.round(progress * 100)}%)</div>
+                    </div>`;
+            });
+        }
+
+        function refuelTruck(truckId) {
+            const t = gameState.trucks.find(x => x.id === truckId);
+            if(!t) return;
+            const maxF = t.maxFuel || 100;
+            const cost = Math.round((maxF - t.fuel) * gameState.fuelPrice);
+            if(gameState.money < cost) { showToast("الرصيد لا يكفي للوقود!", 'danger'); playSound('error'); return; }
+            gameState.money -= cost;
+            gameState.stats.totalFuelCost += cost;
+            t.fuel = maxF;
+            showToast("تم تعبئة الخزان بالكامل.", 'success');
+            updateUI();
+        }
+
+        function repairTruck(truckId) {
+            let repairCost = gameState.unlockedSkills.includes("pro_garage") ? 600 : 1200;
+            if(gameState.money < repairCost) { showToast("الرصيد غير كافٍ للصيانة!", 'danger'); playSound('error'); return; }
+            gameState.money -= repairCost;
+            gameState.stats.totalRepairs += repairCost;
+            const t = gameState.trucks.find(x => x.id === truckId);
+            if(t) t.status = "idle";
+            showToast("تم إصلاح الشاحنة بنجاح.", 'success');
+            updateUI();
+        }
+
+        function renderMarketUI() {
+            document.getElementById("suppliers-list").innerHTML = `
+                <div class="supplier-card">
+                    <h4>توريد الجملة الاقتصادي</h4>
+                    <div style="font-size:0.85rem; color:var(--text-muted);">السعر: $12 / طن</div>
+                    <button class="btn-buy" onclick="buySupplies(12, 50)">شراء 50 طن ($600)</button>
+                </div>
+                <div class="supplier-card">
+                    <h4>التوريد السريع الممتاز</h4>
+                    <div style="font-size:0.85rem; color:var(--text-muted);">السعر: $15 / طن</div>
+                    <button class="btn-buy" onclick="buySupplies(15, 100)">شراء 100 طن ($1,500)</button>
+                </div>`;
+
+            document.getElementById("warehouse-upgrades-list").innerHTML = `
+                <div class="supplier-card">
+                    <h4>توسعة المستودع الإقليمي</h4>
+                    <div style="color:var(--purple); font-weight:700;">+500 طن سعة</div>
+                    <button class="btn-upgrade" onclick="buyWarehouseUpgrade(500, 10000)">ترقية ($10,000)</button>
+                </div>`;
+
+            document.getElementById("truck-shop-list").innerHTML = `
+                <div class="supplier-card">
+                    <h4>🚚 شاحنة ثقيلة (Trailer)</h4>
+                    <div style="color:var(--accent); font-weight:700;">سعة: 30 طن</div>
+                    <button class="btn-upgrade" onclick="buyTruck(30, 25000)">شراء ($25,000)</button>
+                </div>`;
+        }
+
+        function buySupplies(price, qty) {
+            const cost = price * qty;
+            if(gameState.money < cost) { showToast("الرصيد غير كافٍ!", 'danger'); playSound('error'); return; }
+            if(gameState.warehouse.used + qty > gameState.warehouse.capacity) { showToast("المستودع ممتلئ!", 'danger'); playSound('error'); return; }
+            gameState.money -= cost;
+            gameState.warehouse.used += qty;
+            showToast("تم شراء وتخزين البضائع بنجاح.", 'success');
+            updateUI();
+        }
+
+        function buyWarehouseUpgrade(cap, cost) {
+            if(gameState.money < cost) { showToast("الرصيد غير كافٍ!", 'danger'); playSound('error'); return; }
+            gameState.money -= cost;
+            gameState.warehouse.capacity += cap;
+            showToast("تم توسيع المستودع بنجاح!", 'success');
+            updateUI();
+        }
+
+        function buyTruck(cap, cost) {
+            if(gameState.money < cost) { showToast("الرصيد غير كافٍ!", 'danger'); playSound('error'); return; }
+            gameState.money -= cost;
+            gameState.trucks.push({
+                id: Date.now(),
+                name: `شاحنة ثقيلة #${gameState.trucks.length + 1}`,
+                capacity: cap,
+                status: "idle",
+                fuel: 100,
+                maxFuel: 100,
+                speedLvl: 1,
+                driverId: null
+            });
+            showToast("تم إضافة الشاحنة الجديدة لأسطولك!", 'success');
+            checkAchievements();
+            updateUI();
+        }
+
+        function generateContracts() {
+            if(gameState.contracts.length < 5) {
+                const destIdx = Math.floor(Math.random() * DESTINATIONS.length);
+                const dest = DESTINATIONS[destIdx];
+                const qty = Math.floor(Math.random() * 5 + 2) * 10;
+                
+                let cargoType = 'normal';
+                let rewardMultiplier = 1.0;
+
+                if (gameState.level >= 3) {
+                    const rnd = Math.random();
+                    if (rnd < 0.3) { cargoType = 'cold'; rewardMultiplier = 1.4; }
+                    else if (rnd < 0.5) { cargoType = 'hazmat'; rewardMultiplier = 2.2; }
+                }
+
+                gameState.contracts.push({
+                    id: Date.now(),
+                    client: `عميل ${dest.name} #${Math.floor(Math.random() * 90 + 10)}`,
+                    item: cargoType === 'cold' ? '❄️ منتجات مبردة' : (cargoType === 'hazmat' ? '☣️ مواد كيميائية' : 'بضائع عامة'),
+                    qty: qty,
+                    type: cargoType,
+                    ttl: gameState.level >= 4 ? 25 : null,
+                    reward: Math.round(qty * (dest.road === 'offroad' ? 95 : 65) * rewardMultiplier),
+                    destIdx: destIdx
+                });
+                updateUI();
+            }
+        }
+
+        function handleCompetitiveMarketTick() {
+            if (gameState.level < 4) return;
+            let changed = false;
+            gameState.contracts.forEach(c => {
+                if (c.ttl !== null && c.ttl > 0) {
+                    c.ttl -= 1;
+                    if (c.ttl <= 0) {
+                        changed = true;
+                    }
+                }
+            });
+
+            const expired = gameState.contracts.filter(c => c.ttl === 0);
+            if (expired.length > 0) {
+                gameState.contracts = gameState.contracts.filter(c => c.ttl > 0);
+                showToast("⚡ انتقت إحدى العقود ورسيت على شركة منافسة!", "warning");
+                updateUI();
+            }
+        }
+
+        window.onload = () => {
+            safeLoadGame();
+            initRealMap();
+            restoreActiveMissions();
+            updateUI();
+            
+            setInterval(generateContracts, 8000);
+            setInterval(handleCompetitiveMarketTick, 1000);
+            setInterval(paySalaries, 45000);
+            setInterval(moveRivals, 8000);
+            setInterval(updateLiveMap, 300);
+        };
+    </script>
+</body>
+</html>
