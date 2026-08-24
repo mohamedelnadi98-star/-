@@ -2,7 +2,15 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
+    <!-- إعدادات تحويل اللعبة لتطبيق موبايل (PWA) -->
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="theme-color" content="#0b1329">
+    <link rel="manifest" href="data:application/manifest+json;utf8,%7B%22name%22%3A%22%D9%85%D8%AD%D8%A7%D9%83%D9%8A%20%D8%A7%D9%84%D9%84%D9%88%D8%AC%D8%B3%D8%AA%D9%8A%D8%A7%D8%AA%22%2C%22short_name%22%3A%22%D9%84%D9%88%D8%AC%D8%B3%D8%AA%D9%8A%D8%A7%D8%AA%22%2C%22start_url%22%3A%22.%22%2C%22display%22%3A%22standalone%22%2C%22background_color%22%3A%22%230b1329%22%2C%22theme_color%22%3A%22%230b1329%22%7D">
+
     <title>محاكي اللوجستيات المتكامل - WOW Pro Edition v10</title>
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
@@ -23,7 +31,7 @@
             --border-color: #1e293b;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; -webkit-tap-highlight-color: transparent; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Cairo', sans-serif; touch-action: manipulation; }
         body { background-color: var(--bg-color); color: var(--text-main); display: flex; min-height: 100vh; overflow-x: hidden; }
 
         .sidebar {
@@ -52,15 +60,15 @@
         .menu-item.active button, .menu-item button:hover { background-color: var(--accent); color: white; }
         .menu-item.locked button { opacity: 0.5; cursor: not-allowed; }
 
-        .badge-lvl { font-size: 0.7rem; background: rgba(239, 68, 68, 0.2); color: var(--danger); padding: 2px 6px; border-radius: 4px; margin-right: 5px; }
+        .badge-lvl { font-size: 0.7rem; background: rgba(239, 68, 68, 0.2); color: var(--danger); padding: 2px 6px; border-radius: 4px; }
 
-        .main-wrapper { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; }
+        .main-wrapper { flex: 1; display: flex; flex-direction: column; height: 100vh; overflow-y: auto; width: 100%; }
         .top-bar {
             background-color: var(--card-bg); border-bottom: 1px solid var(--border-color);
             padding: 12px 25px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 5;
         }
 
-        .stats-group { display: flex; gap: 10px; align-items: center; }
+        .stats-group { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
         .stat-badge {
             background-color: var(--bg-color); padding: 5px 12px; border-radius: 20px;
             border: 1px solid var(--border-color); font-size: 0.82rem; display: flex; align-items: center; gap: 6px;
@@ -75,23 +83,23 @@
         .tab-pane.active { display: flex; }
 
         .card { background-color: var(--card-bg); border: 1px solid var(--border-color); border-radius: 12px; padding: 18px; }
-        .grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+        .grid-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
 
         .card-title { font-size: 0.8rem; color: var(--text-muted); margin-bottom: 4px; }
         .card-value { font-size: 1.4rem; font-weight: 800; }
 
         #real-map { height: 380px; width: 100%; border-radius: 12px; border: 1px solid var(--border-color); z-index: 1; }
 
-        .suppliers-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; margin-top: 10px; }
+        .suppliers-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; margin-top: 10px; }
         .supplier-card { background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px; padding: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 10px; }
 
-        .table-wrapper { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
-        .table-container { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 550px; }
+        .table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+        .table-container { width: 100%; border-collapse: collapse; margin-top: 10px; min-width: 600px; }
         .table-container th, .table-container td { text-align: right; padding: 8px 10px; border-bottom: 1px solid var(--border-color); font-size: 0.82rem; }
         .table-container th { color: var(--text-muted); font-weight: 600; }
 
         .btn-action, .btn-buy, .btn-upgrade, .btn-fix {
-            border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: all 0.2s; min-height: 38px;
+            border: none; padding: 8px 12px; border-radius: 6px; cursor: pointer; font-weight: 700; font-size: 0.82rem; transition: all 0.2s;
         }
         .btn-action { background-color: var(--accent); color: white; }
         .btn-buy { background-color: var(--success); color: white; width: 100%; }
@@ -115,16 +123,16 @@
 
         .active-mission-item {
             background: var(--bg-color); padding: 10px 14px; border-radius: 8px; border: 1px solid var(--border-color);
-            display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem;
+            display: flex; justify-content: space-between; align-items: center; font-size: 0.85rem; flex-wrap: wrap; gap: 5px;
         }
 
         .event-modal {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; background: rgba(0,0,0,0.7);
-            display: none; justify-content: center; align-items: center; z-index: 1000;
+            display: none; justify-content: center; align-items: center; z-index: 1000; padding: 15px;
         }
         .event-content {
             background: var(--card-bg); border: 2px solid var(--warning); border-radius: 12px;
-            padding: 20px; width: 90%; max-width: 420px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8);
+            padding: 20px; width: 100%; max-width: 420px; text-align: center; box-shadow: 0 10px 25px rgba(0,0,0,0.8);
         }
 
         .truck-icon-marker { font-size: 1.8rem; text-align: center; line-height: 1; filter: drop-shadow(0px 3px 5px rgba(0,0,0,0.7)); }
@@ -132,30 +140,21 @@
 
         .achievement-card {
             background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 10px;
-            padding: 12px; display: flex; justify-content: space-between; align-items: center;
+            padding: 12px; display: flex; justify-content: space-between; align-items: center; gap: 10px;
         }
         .achievement-card.completed { border-color: var(--success); background: rgba(16, 185, 129, 0.08); }
 
-        /* تحسينات متجاوبة للموبايل */
+        /* تعديلات الموبايل والشاشات الصغيرة */
         @media (max-width: 768px) {
-            body { flex-direction: column; }
-            .sidebar { width: 100%; border-left: none; border-bottom: 1px solid var(--border-color); padding: 12px; }
-            .menu { flex-direction: row; overflow-x: auto; padding-bottom: 5px; gap: 6px; -webkit-overflow-scrolling: touch; }
-            .menu-item { flex-shrink: 0; }
-            .menu-item button { white-space: nowrap; padding: 8px 12px; font-size: 0.82rem; }
-            
+            body { flex-direction: column; height: auto; min-height: 100vh; }
+            .sidebar { width: 100%; border-left: none; border-bottom: 1px solid var(--border-color); padding: 12px 10px; }
+            .menu { flex-direction: row; overflow-x: auto; white-space: nowrap; padding-bottom: 5px; -webkit-overflow-scrolling: touch; }
+            .menu-item button { padding: 8px 12px; font-size: 0.8rem; }
             .main-wrapper { height: auto; overflow-y: visible; }
-            .top-bar { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 15px; }
-            .stats-group { flex-wrap: wrap; justify-content: space-between; gap: 6px; }
-            .stat-badge { font-size: 0.75rem; padding: 4px 8px; }
-            
-            .dashboard-content { padding: 12px; gap: 12px; }
-            .grid-cards { grid-template-columns: repeat(2, 1fr); gap: 8px; }
-            .card-value { font-size: 1.1rem; }
+            .top-bar { flex-direction: column; gap: 10px; align-items: stretch; text-align: center; padding: 12px 15px; }
+            .stats-group { justify-content: center; }
             #real-map { height: 260px; }
-            
-            .suppliers-grid { grid-template-columns: 1fr; }
-            .active-mission-item { flex-direction: column; align-items: flex-start; gap: 6px; }
+            .dashboard-content { padding: 12px; }
             #toast-container { left: 10px; right: 10px; bottom: 10px; }
             .toast-msg { max-width: 100%; }
         }
@@ -169,7 +168,7 @@
         <div class="event-content">
             <h3 id="event-title" style="color:var(--warning); margin-bottom:10px;">⚠️ حادث طارئ في الطريق!</h3>
             <p id="event-desc" style="font-size:0.9rem; color:var(--text-muted); margin-bottom:20px;">تعرضت إحدى الشاحنات لثقب في الإطار.</p>
-            <div style="display:flex; gap:10px; justify-content:center;" id="event-actions"></div>
+            <div style="display:flex; gap:10px; justify-content:center; flex-wrap:wrap;" id="event-actions"></div>
         </div>
     </div>
 
@@ -189,25 +188,25 @@
         <ul class="menu">
             <li class="menu-item active"><button onclick="switchTab('pane-dashboard', this)"><span>🗺️ الخريطة والطقس</span></button></li>
             <li class="menu-item"><button onclick="switchTab('pane-skills', this)"><span>🌟 المهارات</span></button></li>
-            <li class="menu-item" id="menu-customization"><button onclick="switchTab('pane-customization', this)"><span>🎨 التعديل</span> <span class="badge-lvl" id="badge-lvl2">L2</span></button></li>
-            <li class="menu-item" id="menu-branches"><button onclick="switchTab('pane-branches', this)"><span>🏢 الفروع</span> <span class="badge-lvl" id="badge-lvl5">L5</span></button></li>
+            <li class="menu-item" id="menu-customization"><button onclick="switchTab('pane-customization', this)"><span>🎨 التعديل</span> <span class="badge-lvl" id="badge-lvl2">Lvl 2</span></button></li>
+            <li class="menu-item" id="menu-branches"><button onclick="switchTab('pane-branches', this)"><span>🏢 الفروع</span> <span class="badge-lvl" id="badge-lvl5">Lvl 5</span></button></li>
             <li class="menu-item"><button onclick="switchTab('pane-achievements', this)"><span>🏆 الإنجازات</span></button></li>
-            <li class="menu-item"><button onclick="switchTab('pane-suppliers', this)"><span>🏭 الشراء</span></button></li>
+            <li class="menu-item"><button onclick="switchTab('pane-suppliers', this)"><span>🏭 شراء الموارد</span></button></li>
             <li class="menu-item"><button onclick="switchTab('pane-fleet', this)"><span>🚚 الأسطول</span></button></li>
             <li class="menu-item"><button onclick="switchTab('pane-drivers', this)"><span>👨‍✈️ السائقين</span></button></li>
             <li class="menu-item"><button onclick="switchTab('pane-contracts', this)"><span>🛍️ العقود</span></button></li>
-            <li class="menu-item"><button onclick="switchTab('pane-upgrades', this)"><span>🚀 التوسعة</span></button></li>
+            <li class="menu-item"><button onclick="switchTab('pane-upgrades', this)"><span>🚀 المعرض</span></button></li>
         </ul>
     </aside>
 
     <div class="main-wrapper">
         <header class="top-bar">
-            <h3 id="current-page-title" style="font-size: 1.1rem;">تتبع الحركة والطقس المباشر</h3>
+            <h3 id="current-page-title">تتبع الحركة والطقس المباشر</h3>
             <div class="stats-group">
-                <button class="btn-sound" onclick="toggleAudio()"><span id="sound-icon">🔊</span></button>
-                <button class="btn-reset" onclick="resetStuckTrucks()">🔧 إزالة تعليق</button>
-                <div class="stat-badge"><span>⛽</span><span class="value" id="stat-fuel-price">$1.8 / لتر</span></div>
-                <div class="stat-badge"><span>💰</span><span class="value" id="stat-money">$0</span></div>
+                <button class="btn-sound" onclick="toggleAudio()"><span id="sound-icon">🔊</span> الصوت: مفعل</button>
+                <button class="btn-reset" onclick="resetStuckTrucks()">🔧 إزالة التعليق</button>
+                <div class="stat-badge"><span>⛽ الوقود:</span><span class="value" id="stat-fuel-price">$1.8 / لتر</span></div>
+                <div class="stat-badge"><span>💰 الخزينة:</span><span class="value" id="stat-money">$0</span></div>
             </div>
         </header>
 
@@ -230,20 +229,20 @@
                     </div>
                     <div class="card">
                         <div class="card-title">الطقس الحقيقي</div>
-                        <div class="card-value" id="cairo-weather-card" style="font-size:1rem; color:var(--warning);">☀️ مشمس</div>
+                        <div class="card-value" id="cairo-weather-card" style="font-size:1.1rem; color:var(--warning);">☀️ مشمس</div>
                     </div>
                 </div>
 
                 <div class="card">
-                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;">
-                        <h3>🗺️ خريطة الملاحة والمنافسين 🏎️</h3>
-                        <span style="font-size:0.75rem; color:var(--text-muted);" id="market-status-badge">📈 مستقرة</span>
+                    <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:10px; flex-wrap:wrap; gap:5px;">
+                        <h3>🗺️ خريطة الملاحة الحية والمنافسين 🏎️</h3>
+                        <span style="font-size:0.8rem; color:var(--text-muted);" id="market-status-badge">📈 البورصة: مستقرة</span>
                     </div>
                     <div id="real-map"></div>
                 </div>
 
                 <div class="card">
-                    <h3>🚛 الشحنات الجارية في الطريق</h3>
+                    <h3>🚛 الشحنات الجارية في الطريق حالياً</h3>
                     <div id="active-missions-list" style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
                         <div style="color:var(--text-muted); text-align:center;">لا توجد رحلات نشطة الآن</div>
                     </div>
@@ -258,20 +257,20 @@
                 </div>
             </div>
 
-            <!-- 3. Customization -->
+            <!-- 3. Customization (Lvl 2) -->
             <div id="pane-customization" class="tab-pane">
                 <div class="card">
-                    <h3>🎨 تعديل وترقية الشاحنات (Level 2+)</h3>
-                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">ترقية الخزان والمحرك لتقليل زمن الرحلات:</p>
+                    <h3>🎨 تعديل وترقية أداء الشاحنات (Level 2+)</h3>
+                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">قم بترقية خزان الوقود والمحرك لتقليل زمن الرحلات وتغيير مظهر الشاحنة:</p>
                     <div id="customization-trucks-list" style="display:flex; flex-direction:column; gap:12px;"></div>
                 </div>
             </div>
 
-            <!-- 4. Branches -->
+            <!-- 4. Branches (Lvl 5) -->
             <div id="pane-branches" class="tab-pane">
                 <div class="card">
-                    <h3>🏢 إدارة الفروع (Level 5+)</h3>
-                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">فتح الفروع يقلل تكاليف الوقود بنسبة 40%:</p>
+                    <h3>🏢 التوسع وإدارة الفروع الإقليمية (Level 5+)</h3>
+                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:15px;">فتح فروع في المدن البعيدة يقلل تكاليف الوقود للشحنات القادمة منها بنسبة 40%:</p>
                     <div class="suppliers-grid" id="branches-list"></div>
                 </div>
             </div>
@@ -295,7 +294,7 @@
             <!-- 7. Fleet -->
             <div id="pane-fleet" class="tab-pane">
                 <div class="card">
-                    <h3>🚚 أسطول الشاحنات والصيانة</h3>
+                    <h3>🚚 حالة أسطول الشاحنات والصيانة والوقود</h3>
                     <div id="trucks-list" style="display:flex; flex-direction:column; gap:10px; margin-top:10px;"></div>
                 </div>
             </div>
@@ -308,7 +307,7 @@
                 </div>
                 <div class="card">
                     <h3>➕ توظيف سائق جديد</h3>
-                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;">رسوم التوظيف: $1,200 | الراتب: $400</p>
+                    <p style="font-size:0.85rem; color:var(--text-muted); margin-bottom:10px;">رسوم التوظيف: $1,200 | الراتب الدوري: $400</p>
                     <button class="btn-action" onclick="hireDriver()">توظيف سائق</button>
                 </div>
             </div>
@@ -320,15 +319,15 @@
                         <h3>🛍️ العقود المتاحة للتوصيل</h3>
                         <div id="hazmat-license-status"></div>
                     </div>
-                    <div class="table-wrapper">
+                    <div class="table-responsive">
                         <table class="table-container">
                             <thead>
                                 <tr>
                                     <th>الوجهة / العميل</th>
-                                    <th>النوع</th>
+                                    <th>نوع البضاعة</th>
                                     <th>الكمية</th>
                                     <th>الخصائص والطريق</th>
-                                    <th>الوقت</th>
+                                    <th>الانتهاء / الوقت</th>
                                     <th>العائد</th>
                                     <th>إرسال</th>
                                 </tr>
@@ -404,7 +403,7 @@
         function toggleAudio() {
             audioEnabled = !audioEnabled;
             document.getElementById("sound-icon").textContent = audioEnabled ? "🔊" : "🔇";
-            showToast(audioEnabled ? "تم تفعيل الصوت 🔊" : "تم كتم الصوت 🔇", "info");
+            showToast(audioEnabled ? "تم تفعيل الأصوات 🔊" : "تم كتم الأصوات 🔇", "info");
         }
 
         const DEPOT_COORDS = [30.0444, 31.2357]; 
@@ -418,9 +417,9 @@
         ];
 
         const SKILLS_DB = [
-            { id: "negotiator", name: "المفاوض الذكي", desc: "+15% زيادة في أرباح العقود", cost: 1, levelReq: 1 },
-            { id: "eco_driver", name: "القيادة الاقتصادية", desc: "-25% تقليل استهلاك الوقود", cost: 1, levelReq: 2 },
-            { id: "pro_garage", name: "الورشة الاحترافية", desc: "-50% خصم على تكلفة التصليح", cost: 2, levelReq: 3 }
+            { id: "negotiator", name: "المفاوض الذكي", desc: "+15% زيادة في أرباح جميع العقود", cost: 1, levelReq: 1 },
+            { id: "eco_driver", name: "القيادة الاقتصادية", desc: "-25% تقليل في استهلاك الوقود", cost: 1, levelReq: 2 },
+            { id: "pro_garage", name: "الورشة الاحترافية", desc: "-50% خصم على تكلفة صيانة وتصليح الشاحنات", cost: 2, levelReq: 3 }
         ];
 
         const defaultState = {
@@ -474,7 +473,9 @@
             for (let key in loaded) {
                 if (loaded[key] !== undefined && loaded[key] !== null) {
                     if (Array.isArray(loaded[key])) {
-                        if (loaded[key].length > 0) result[key] = loaded[key];
+                        if (loaded[key].length > 0) {
+                            result[key] = loaded[key];
+                        }
                     } else if (typeof loaded[key] === 'object' && !Array.isArray(loaded[key])) {
                         result[key] = mergeSaveData(result[key] || {}, loaded[key]);
                     } else {
@@ -491,7 +492,10 @@
             if (!rawData) {
                 for (let oldKey of LEGACY_SAVE_KEYS) {
                     let foundData = localStorage.getItem(oldKey);
-                    if (foundData) { rawData = foundData; break; }
+                    if (foundData) {
+                        rawData = foundData;
+                        break;
+                    }
                 }
             }
 
@@ -584,10 +588,10 @@
         }
 
         function buyHazmatLicense() {
-            if(gameState.money < 3000) { showToast("الرصيد غير كافٍ ($3,000)", 'danger'); return; }
+            if(gameState.money < 3000) { showToast("الرصيد غير كافٍ لشراء الرخصة ($3,000)", 'danger'); return; }
             gameState.money -= 3000;
             gameState.hazmatLicense = true;
-            showToast("☣️ تم شراء رخصة المواد الخطرة!", 'success');
+            showToast("☣️ تم الحصول على رخصة نقل المواد الخطرة!", 'success');
             checkAchievements();
             updateUI();
         }
@@ -596,10 +600,10 @@
             const t = gameState.trucks.find(x => x.id === truckId);
             if(!t) return;
             const cost = t.speedLvl * 2500;
-            if(gameState.money < cost) { showToast("الرصيد غير كافٍ!", 'danger'); return; }
+            if(gameState.money < cost) { showToast("الرصيد غير كافٍ للترقية!", 'danger'); return; }
             gameState.money -= cost;
             t.speedLvl += 1;
-            showToast(`🚀 تم ترقية محرك ${t.name} لـ Lvl ${t.speedLvl}`, 'success');
+            showToast(`🚀 تم ترقية محرك ${t.name} إلى المستوى ${t.speedLvl}`, 'success');
             updateUI();
         }
 
@@ -611,15 +615,15 @@
             gameState.money -= cost;
             t.maxFuel = (t.maxFuel || 100) + 30;
             t.fuel = t.maxFuel;
-            showToast(`⛽ تم توسيع الخزان لـ ${t.maxFuel}L`, 'success');
+            showToast(`⛽ تم زيادة سعة التانك لـ ${t.maxFuel} لتر`, 'success');
             updateUI();
         }
 
         function buyBranch(destId, cost) {
-            if(gameState.money < cost) { showToast("الرصيد غير كافٍ!", 'danger'); return; }
+            if(gameState.money < cost) { showToast("الرصيد غير كافٍ لشراء الفرع!", 'danger'); return; }
             gameState.money -= cost;
             gameState.ownedBranches.push(destId);
-            showToast("🏢 تم افتتاح الفرع الجديد!", 'success');
+            showToast("🏢 تم افتتاح الفرع الجديد بنجاح!", 'success');
             updateUI();
         }
 
@@ -642,13 +646,13 @@
                 gameState.money += a.rewardMoney;
                 addXP(a.rewardXP);
                 playSound('money');
-                showToast(`🏆 استلام جائزة: ${a.title} (+$${a.rewardMoney})`, 'success');
+                showToast(`🏆 تم استلام جائزة: ${a.title} (+$${a.rewardMoney})`, 'success');
                 updateUI();
             }
         }
 
         function hireDriver() {
-            if(gameState.money < 1200) { showToast("الرصيد غير كافٍ ($1,200)", 'danger'); playSound('error'); return; }
+            if(gameState.money < 1200) { showToast("الرصيد غير كافٍ لتوظيف سائق ($1,200)", 'danger'); playSound('error'); return; }
             gameState.money -= 1200;
             gameState.drivers.push({ id: Date.now(), name: `سائق #${gameState.drivers.length + 1}`, salary: 400, assignedTruckId: null });
             showToast("تم توظيف سائق جديد!", 'success');
@@ -678,7 +682,7 @@
                 gameState.stats.totalSalaries += total;
                 showToast(`💸 خصم رواتب السائقين (-$${total})`, 'info');
             } else {
-                showToast("⚠️ عجز في الخزينة لدفع الرواتب!", 'danger');
+                showToast("⚠️ عجز في الخزينة لدفع رواتب السائقين!", 'danger');
                 playSound('error');
             }
             updateUI();
@@ -689,10 +693,10 @@
             playSound('error');
             modal.style.display = "flex";
             document.getElementById("event-title").textContent = "⚠️ حادث طارئ في الطريق!";
-            document.getElementById("event-desc").textContent = `الشاحنة ${mission.truckName} تعطلت مؤقتاً.`;
+            document.getElementById("event-desc").textContent = `الشاحنة ${mission.truckName} تعطلت مؤقتاً في الطريق.`;
             document.getElementById("event-actions").innerHTML = `
-                <button class="btn-action" onclick="resolveEvent(200)">صيانة سريعة ($200)</button>
-                <button class="btn-fix" onclick="resolveEvent(0)">انتظار التصليح</button>
+                <button class="btn-action" onclick="resolveEvent(200)">إرسال صيانة سريعة ($200)</button>
+                <button class="btn-fix" onclick="resolveEvent(0)">الانتظار للتصليح</button>
             `;
         }
 
@@ -728,12 +732,12 @@
             SKILLS_DB.forEach(sk => {
                 const isUnlocked = gameState.unlockedSkills.includes(sk.id);
                 skillsListEl.innerHTML += `
-                    <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center;">
+                    <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <div>
                             <strong>${sk.name} ${isUnlocked ? '✅' : ''}</strong>
                             <div style="font-size:0.8rem; color:var(--text-muted);">${sk.desc}</div>
                         </div>
-                        ${!isUnlocked ? `<button class="btn-upgrade" style="width:auto;" onclick="unlockSkill('${sk.id}')">فتح (${sk.cost} pt)</button>` : ''}
+                        ${!isUnlocked ? `<button class="btn-upgrade" style="width:auto;" onclick="unlockSkill('${sk.id}')">فتح (${sk.cost} نقطة)</button>` : ''}
                     </div>`;
             });
 
@@ -741,13 +745,13 @@
             custEl.innerHTML = "";
             gameState.trucks.forEach(t => {
                 custEl.innerHTML += `
-                    <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:12px; border-radius:8px; display:flex; flex-direction:column; gap:10px;">
+                    <div style="background:var(--bg-color); border:1px solid var(--border-color); padding:12px; border-radius:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <div>
-                            <strong>${t.name}</strong> (محرك: Lvl ${t.speedLvl || 1} | خزان: ${t.maxFuel || 100}L)
+                            <strong>${t.name}</strong> (قوة المحرك: Lvl ${t.speedLvl || 1} | خزان: ${t.maxFuel || 100}L)
                         </div>
-                        <div style="display:flex; gap:8px;">
-                            <button class="btn-action" style="flex:1;" onclick="upgradeTruckEngine(${t.id})">🚀 محرك ($${(t.speedLvl || 1) * 2500})</button>
-                            <button class="btn-action" style="background:var(--purple); flex:1;" onclick="upgradeTruckTank(${t.id})">⛽ خزان ($1,800)</button>
+                        <div style="display:flex; gap:8px; flex-wrap:wrap;">
+                            <button class="btn-action" onclick="upgradeTruckEngine(${t.id})">🚀 ترقية المحرك ($${(t.speedLvl || 1) * 2500})</button>
+                            <button class="btn-action" style="background:var(--purple);" onclick="upgradeTruckTank(${t.id})">⛽ توسيع الخزان ($1,800)</button>
                         </div>
                     </div>`;
             });
@@ -759,8 +763,8 @@
                 branchEl.innerHTML += `
                     <div class="supplier-card">
                         <h4>فرع ${d.name}</h4>
-                        <div style="font-size:0.8rem; color:var(--text-muted);">${isOwned ? '✅ ملك الشركة' : 'تأسيس: $35,000'}</div>
-                        ${!isOwned ? `<button class="btn-buy" onclick="buyBranch('${d.id}', 35000)">تأسيس فرع ($35,000)</button>` : '<span style="color:var(--success); font-weight:bold;">نشط (-40% وقود)</span>'}
+                        <div style="font-size:0.8rem; color:var(--text-muted);">${isOwned ? '✅ ملك الشركة حالياً' : 'تكلفة التأسيس: $35,000'}</div>
+                        ${!isOwned ? `<button class="btn-buy" onclick="buyBranch('${d.id}', 35000)">تأسيس فرع ($35,000)</button>` : '<span style="color:var(--success); font-weight:bold;">نشط ويخفض الوقود 40%</span>'}
                     </div>`;
             });
 
@@ -774,7 +778,7 @@
                             <div style="font-size:0.8rem; color:var(--text-muted);">${a.desc}</div>
                         </div>
                         <div>
-                            ${a.done ? '<span style="color:var(--success); font-weight:bold;">مكتمل</span>' : (a.canClaim ? `<button class="btn-buy" onclick="claimAchievement('${a.id}')">جائزة ($${a.rewardMoney})</button>` : `<span style="color:var(--text-muted);">$${a.rewardMoney}</span>`)}
+                            ${a.done ? '<span style="color:var(--success); font-weight:bold;">مكتمل</span>' : (a.canClaim ? `<button class="btn-buy" onclick="claimAchievement('${a.id}')">استلام الجائزة ($${a.rewardMoney})</button>` : `<span style="color:var(--text-muted);">$${a.rewardMoney}</span>`)}
                         </div>
                     </div>`;
             });
@@ -784,16 +788,16 @@
             gameState.trucks.forEach(truck => {
                 const driver = gameState.drivers.find(d => d.id === truck.driverId);
                 truckListEl.innerHTML += `
-                    <div style="background:var(--bg-color); padding:12px; border-radius:8px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div style="background:var(--bg-color); padding:12px; border-radius:8px; border:1px solid var(--border-color); display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <div>
                             <strong>${truck.name}</strong> (${truck.capacity} طن)
                             <div style="font-size:0.8rem; color:var(--text-muted);">
-                                السائق: <strong style="color:var(--purple);">${driver ? driver.name : 'بدون سائق ❌'}</strong>
+                                السائق: <strong style="color:var(--purple);">${driver ? driver.name : 'بدون سائق ❌'}</strong> | الحالة: ${truck.status === 'busy' ? 'في الطريق 🚚' : (truck.status === 'broken' ? 'معطلة ⚠️' : 'جاهزة ✅')}
                             </div>
                         </div>
-                        <div style="display:flex; gap:8px; align-items:center;">
+                        <div style="display:flex; gap:10px; align-items:center;">
                             <span style="font-size:0.85rem;">⛽ ${truck.fuel}/${truck.maxFuel || 100}%</span>
-                            ${truck.fuel < (truck.maxFuel || 100) ? `<button class="btn-action" style="background:var(--warning); color:#000;" onclick="refuelTruck(${truck.id})">وقود</button>` : ''}
+                            ${truck.fuel < (truck.maxFuel || 100) ? `<button class="btn-action" style="background:var(--warning); color:#000;" onclick="refuelTruck(${truck.id})">تزويد وقود</button>` : ''}
                             ${truck.status === 'broken' ? `<button class="btn-fix" onclick="repairTruck(${truck.id})">إصلاح</button>` : ''}
                         </div>
                     </div>`;
@@ -802,16 +806,16 @@
             const driversListEl = document.getElementById("drivers-list");
             driversListEl.innerHTML = "";
             gameState.drivers.forEach(driver => {
-                let options = `<option value="">-- تعيين شاحنة --</option>`;
+                let options = `<option value="">-- تعيين على شاحنة --</option>`;
                 gameState.trucks.forEach(t => {
                     const isSelected = t.id === driver.assignedTruckId ? 'selected' : '';
                     options += `<option value="${t.id}" ${isSelected}>${t.name}</option>`;
                 });
                 driversListEl.innerHTML += `
-                    <div style="background:var(--bg-color); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:8px;">
+                    <div style="background:var(--bg-color); padding:10px; border-radius:8px; margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:10px;">
                         <div>
                             <strong>${driver.name}</strong>
-                            <span style="font-size:0.8rem; color:var(--text-muted); margin-right:6px;">$${driver.salary}/دورة</span>
+                            <span style="font-size:0.8rem; color:var(--text-muted); margin-right:10px;">الراتب: $${driver.salary}/دورة</span>
                         </div>
                         <select onchange="assignDriverToTruck(${driver.id}, this.value ? parseInt(this.value) : null)" style="background:var(--card-bg); color:white; border:1px solid var(--border-color); padding:6px; border-radius:6px;">
                             ${options}
@@ -820,8 +824,8 @@
             });
 
             document.getElementById("hazmat-license-status").innerHTML = gameState.hazmatLicense ? 
-                `<span style="color:var(--success); font-weight:bold; font-size:0.8rem;">☣️ رخصة المواد الخطرة: مفعلة</span>` :
-                (gameState.level >= 3 ? `<button class="btn-action" style="background:var(--warning); color:#000;" onclick="buyHazmatLicense()">شراء رخصة ($3,000)</button>` : `<span style="font-size:0.8rem; color:var(--text-muted);">🔒 رخصة المواد الخطرة لفل 3</span>`);
+                `<span style="color:var(--success); font-weight:bold;">☣️ رخصة المواد الخطرة: مفعلة</span>` :
+                (gameState.level >= 3 ? `<button class="btn-action" style="background:var(--warning); color:#000;" onclick="buyHazmatLicense()">شراء رخصة مواد خطرة ($3,000)</button>` : `<span style="font-size:0.8rem; color:var(--text-muted);">🔒 رخصة المواد الخطرة تفتح بالمستوى 3</span>`);
 
             const contractsTable = document.getElementById("contracts-list");
             contractsTable.innerHTML = "";
@@ -839,9 +843,9 @@
                         <td>
                             <span class="road-badge ${isOffroad ? 'road-offroad' : 'road-flat'}">${isOffroad ? '🏜️ صحراوي' : '🛣️ ممهد'}</span>
                             ${isCold ? '<span class="road-badge cargo-cold">❄️ مبرد</span>' : ''}
-                            ${isHazmat ? '<span class="road-badge cargo-hazmat">☣️ خطرة</span>' : ''}
+                            ${isHazmat ? '<span class="road-badge cargo-hazmat">☣️ مواد خطرة</span>' : ''}
                         </td>
-                        <td>⏱️ ${dest.timeSec}ث ${c.ttl ? `<br><small style="color:var(--danger);">${c.ttl}ث</small>` : ''}</td>
+                        <td>⏱️ ${dest.timeSec}ث ${c.ttl ? `<br><small style="color:var(--danger);">ينتهي في ${c.ttl}ث</small>` : ''}</td>
                         <td style="color:var(--success); font-weight:700;">$${c.reward.toLocaleString()}</td>
                         <td><button class="btn-action" onclick="dispatchTruck(${c.id})">إرسال</button></td>
                     </tr>`;
@@ -868,7 +872,7 @@
             if (dest && dest.road === 'offroad' && Math.random() < 0.25) {
                 if (truck) truck.status = "broken";
                 playSound('error');
-                showToast(`⚠️ تعطلت ${mission.truckName}!`, 'danger');
+                showToast(`⚠️ تعطلت ${mission.truckName} أثناء العودة!`, 'danger');
             }
 
             gameState.money += mission.reward;
@@ -877,7 +881,7 @@
 
             playSound('money');
             addXP(120);
-            showToast(`🎉 وصلت الشحنة لـ ${mission.destName}! +$${mission.reward.toLocaleString()}`, 'success');
+            showToast(`🎉 وصلت الشحنة إلى ${mission.destName}! +$${mission.reward.toLocaleString()}`, 'success');
             checkAchievements();
             updateUI();
         }
@@ -936,20 +940,20 @@
             if(!contract) return;
 
             if(contract.type === 'hazmat' && !gameState.hazmatLicense) {
-                showToast("يلزم شراء رخصة المواد الخطرة!", 'danger'); playSound('error'); return;
+                showToast("يلزم شراء رخصة المواد الخطرة أولاً!", 'danger'); playSound('error'); return;
             }
 
             const dest = DESTINATIONS[contract.destIdx];
             const truck = gameState.trucks.find(t => t.status === "idle" && t.driverId !== null);
             
-            if(!truck) { showToast("يلزم شاحنة جاهزة وبداخلها سائق!", 'warning'); playSound('error'); return; }
+            if(!truck) { showToast("يلزم شاحنة جاهزة وبداخلها سائق معين!", 'warning'); playSound('error'); return; }
 
             let fuelMultiplier = gameState.unlockedSkills.includes("eco_driver") ? 0.75 : 1.0;
             if (gameState.ownedBranches.includes(dest.id)) fuelMultiplier *= 0.6; 
 
             const neededFuel = Math.round((15 + (contract.qty / 4)) * (dest.road === 'offroad' ? 1.8 : 1.0) * fuelMultiplier);
             if(truck.fuel < neededFuel) { showToast(`الوقود غير كافٍ! يحتاج ${neededFuel}%`, 'warning'); playSound('error'); return; }
-            if(gameState.warehouse.used < contract.qty) { showToast("المخزون غير كافٍ!", 'danger'); playSound('error'); return; }
+            if(gameState.warehouse.used < contract.qty) { showToast("المخزون بالمستودع غير كافٍ!", 'danger'); playSound('error'); return; }
 
             gameState.warehouse.used -= contract.qty;
             truck.fuel -= neededFuel;
@@ -1036,17 +1040,17 @@
             if(!t) return;
             const maxF = t.maxFuel || 100;
             const cost = Math.round((maxF - t.fuel) * gameState.fuelPrice);
-            if(gameState.money < cost) { showToast("الرصيد لا يكفي!", 'danger'); playSound('error'); return; }
+            if(gameState.money < cost) { showToast("الرصيد لا يكفي للوقود!", 'danger'); playSound('error'); return; }
             gameState.money -= cost;
             gameState.stats.totalFuelCost += cost;
             t.fuel = maxF;
-            showToast("تم تعبئة الخزان.", 'success');
+            showToast("تم تعبئة الخزان بالكامل.", 'success');
             updateUI();
         }
 
         function repairTruck(truckId) {
             let repairCost = gameState.unlockedSkills.includes("pro_garage") ? 600 : 1200;
-            if(gameState.money < repairCost) { showToast("الرصيد غير كافٍ!", 'danger'); playSound('error'); return; }
+            if(gameState.money < repairCost) { showToast("الرصيد غير كافٍ للصيانة!", 'danger'); playSound('error'); return; }
             gameState.money -= repairCost;
             gameState.stats.totalRepairs += repairCost;
             const t = gameState.trucks.find(x => x.id === truckId);
@@ -1089,7 +1093,7 @@
             if(gameState.warehouse.used + qty > gameState.warehouse.capacity) { showToast("المستودع ممتلئ!", 'danger'); playSound('error'); return; }
             gameState.money -= cost;
             gameState.warehouse.used += qty;
-            showToast("تم الشراء والتخزين.", 'success');
+            showToast("تم شراء وتخزين البضائع بنجاح.", 'success');
             updateUI();
         }
 
@@ -1114,7 +1118,7 @@
                 speedLvl: 1,
                 driverId: null
             });
-            showToast("تم إضافة الشاحنة لأسطولك!", 'success');
+            showToast("تم إضافة الشاحنة الجديدة لأسطولك!", 'success');
             checkAchievements();
             updateUI();
         }
@@ -1154,14 +1158,16 @@
             gameState.contracts.forEach(c => {
                 if (c.ttl !== null && c.ttl > 0) {
                     c.ttl -= 1;
-                    if (c.ttl <= 0) changed = true;
+                    if (c.ttl <= 0) {
+                        changed = true;
+                    }
                 }
             });
 
             const expired = gameState.contracts.filter(c => c.ttl === 0);
             if (expired.length > 0) {
                 gameState.contracts = gameState.contracts.filter(c => c.ttl > 0);
-                showToast("⚡ رسى أحد العقود على شركة منافسة!", "warning");
+                showToast("⚡ انتقت إحدى العقود ورسيت على شركة منافسة!", "warning");
                 updateUI();
             }
         }
