@@ -2,8 +2,11 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محاكي التاجر الواقعي - مصر - Realistic Trader Simulator Pro</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="screen-orientation" content="landscape">
+    <meta name="orientation" content="landscape">
+    <meta name="theme-color" content="#020617">
+    <title>محاكي التاجر الواقعي - Realistic Trader Simulator Pro</title>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800;900&display=swap');
 
@@ -20,140 +23,246 @@
             --text-muted: #94a3b8;
         }
 
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Tajawal', sans-serif; user-select: none; }
+        * { 
+            box-sizing: border-box; 
+            margin: 0; 
+            padding: 0; 
+            font-family: 'Tajawal', sans-serif; 
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-touch-callout: none;
+        }
 
-        body {
+        /* إلغاء مساطر التمرير الافتراضية للكل */
+        ::-webkit-scrollbar {
+            width: 5px;
+            height: 5px;
+        }
+        ::-webkit-scrollbar-track {
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: var(--panel-border);
+            border-radius: 4px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--accent-gold);
+        }
+
+        html, body {
+            width: 100vw;
+            height: 100vh;
             background-color: #020617;
             color: var(--text-main);
-            height: 100vh;
+            overflow: hidden; /* إخفاء أي مساطر تمرير خارجية */
             display: flex;
             justify-content: center;
             align-items: center;
-            overflow: hidden;
         }
 
+        /* حاوي اللعبة المرن ليناسب الموبايل والشاشات */
         #game-container {
             position: relative;
-            width: 1150px;
-            height: 700px;
+            width: 100vw;
+            height: 100vh;
+            max-width: 100%;
+            max-height: 100%;
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-            border-radius: 16px;
-            border: 2px solid var(--panel-border);
-            box-shadow: 0 25px 50px rgba(0, 0, 0, 0.8);
             overflow: hidden;
+            display: flex;
+            flex-direction: column;
         }
 
-        .screen { position: absolute; inset: 0; display: flex; flex-direction: column; background: var(--bg-dark); z-index: 10; }
+        .screen { 
+            position: absolute; 
+            inset: 0; 
+            display: flex; 
+            flex-direction: column; 
+            background: var(--bg-dark); 
+            z-index: 10; 
+        }
         .screen.hidden { display: none !important; }
 
         .menu-btn {
-            width: 100%; padding: 12px 20px; background: var(--panel-bg); border: 2px solid var(--panel-border);
-            color: var(--text-main); border-radius: 12px; font-size: 1rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
+            width: 100%; padding: 10px 16px; background: var(--panel-bg); border: 2px solid var(--panel-border);
+            color: var(--text-main); border-radius: 10px; font-size: 0.9rem; font-weight: 700; cursor: pointer; transition: all 0.2s;
         }
-        .menu-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); transform: translateY(-2px); }
+        .menu-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
         .menu-btn.primary { background: var(--accent-gold); color: #000; border-color: var(--accent-gold); }
         .menu-btn.danger { background: var(--accent-red); color: #fff; border-color: var(--accent-red); }
 
         .modal-overlay {
-            position: absolute; inset: 0; background: rgba(2, 6, 23, 0.85); backdrop-filter: blur(5px);
-            display: flex; justify-content: center; align-items: center; z-index: 200;
+            position: absolute; inset: 0; background: rgba(2, 6, 23, 0.88); backdrop-filter: blur(6px);
+            display: flex; justify-content: center; align-items: center; z-index: 200; padding: 15px;
         }
         .modal-overlay.hidden { display: none !important; }
         
         .modal-card {
-            background: var(--panel-bg); border: 2px solid var(--accent-gold); padding: 25px; border-radius: 16px;
-            width: 450px; text-align: center; display: flex; flex-direction: column; gap: 16px;
-            box-shadow: 0 15px 30px rgba(0,0,0,0.7); animation: slideIn 0.3s ease;
+            background: var(--panel-bg); border: 2px solid var(--accent-gold); padding: 20px; border-radius: 14px;
+            width: 100%; max-width: 420px; text-align: center; display: flex; flex-direction: column; gap: 12px;
+            box-shadow: 0 15px 30px rgba(0,0,0,0.8); animation: slideIn 0.25s ease;
         }
         .modal-card.danger-modal { border-color: var(--accent-red); }
         
         .modal-input, .modal-textarea {
-            width: 100%; padding: 12px; border-radius: 10px; border: 1.5px solid var(--panel-border);
-            background: #0f172a; color: var(--text-main); font-size: 0.95rem; font-weight: 700;
-            outline: none; transition: all 0.2s; resize: none;
+            width: 100%; padding: 10px 14px; border-radius: 8px; border: 1.5px solid var(--panel-border);
+            background: #0f172a; color: var(--text-main); font-size: 0.9rem; font-weight: 700; outline: none;
         }
-        .modal-input:focus, .modal-textarea:focus { border-color: var(--accent-gold); box-shadow: 0 0 10px rgba(245, 158, 11, 0.3); }
+        .modal-input:focus, .modal-textarea:focus { border-color: var(--accent-gold); }
 
-        .modal-actions { display: flex; gap: 10px; width: 100%; }
+        .modal-actions { display: flex; gap: 8px; width: 100%; }
 
-        .top-bar { background: rgba(15, 23, 42, 0.95); border-bottom: 2px solid var(--panel-border); padding: 10px 24px; display: flex; justify-content: space-between; align-items: center; }
-        .stats-group { display: flex; gap: 8px; flex-wrap: wrap; }
-        .stat-pill { background: var(--panel-bg); border: 1px solid var(--panel-border); padding: 5px 12px; border-radius: 20px; font-size: 0.82rem; font-weight: 700; }
+        /* شريط العناوين العلوي للموبايل */
+        .top-bar { 
+            background: rgba(15, 23, 42, 0.98); 
+            border-bottom: 2px solid var(--panel-border); 
+            padding: 8px 16px; 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center;
+            flex-shrink: 0;
+            gap: 10px;
+        }
+        
+        .company-title {
+            font-weight: 800; 
+            color: var(--accent-gold); 
+            font-size: 0.95rem;
+            white-space: nowrap;
+        }
+
+        .stats-group { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
+        .stat-pill { 
+            background: var(--panel-bg); 
+            border: 1px solid var(--panel-border); 
+            padding: 4px 10px; 
+            border-radius: 16px; 
+            font-size: 0.78rem; 
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            white-space: nowrap;
+        }
 
         .month-progress-bar {
-            width: 100px; height: 8px; background: #0f172a; border-radius: 4px; overflow: hidden; display: inline-block; vertical-align: middle; margin-right: 5px; border: 1px solid var(--panel-border);
+            width: 60px; height: 6px; background: #0f172a; border-radius: 4px; overflow: hidden; display: inline-block; border: 1px solid var(--panel-border);
         }
         .month-progress-fill { height: 100%; background: var(--accent-gold); width: 0%; transition: width 1s linear; }
 
-        .dashboard-layout { display: grid; grid-template-columns: 240px 1fr; height: calc(100% - 65px); }
+        /* تخطيط اللعبة التفاعلي متجاوب للجوال */
+        .dashboard-layout { 
+            display: grid; 
+            grid-template-columns: 210px 1fr; 
+            height: calc(100vh - 55px);
+            overflow: hidden;
+        }
 
-        .sidebar { background: rgba(15, 23, 42, 0.6); border-left: 2px solid var(--panel-border); padding: 15px; display: flex; flex-direction: column; gap: 8px; overflow-y: auto; }
+        .sidebar { 
+            background: rgba(15, 23, 42, 0.7); 
+            border-left: 2px solid var(--panel-border); 
+            padding: 10px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 6px; 
+            overflow-y: auto;
+        }
         
         .nav-btn {
             background: var(--panel-bg); border: 1.5px solid var(--panel-border); color: var(--text-main);
-            padding: 10px 14px; border-radius: 10px; font-size: 0.88rem; font-weight: 700; cursor: pointer;
-            text-align: right; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s;
+            padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer;
+            text-align: right; display: flex; align-items: center; justify-content: space-between; transition: all 0.15s;
         }
         .nav-btn:hover { border-color: var(--accent-blue); background: rgba(59, 130, 246, 0.1); }
         .nav-btn.active {
             border-color: var(--accent-gold) !important;
             background: rgba(245, 158, 11, 0.15) !important;
             color: var(--accent-gold) !important;
-            box-shadow: 0 0 10px rgba(245, 158, 11, 0.2);
         }
 
-        .main-content { padding: 25px; overflow-y: auto; height: 100%; }
-        .card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 18px; margin-top: 15px; }
+        .main-content { 
+            padding: 15px; 
+            overflow-y: auto; 
+            height: 100%; 
+        }
+
+        .card-grid { 
+            display: grid; 
+            grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); 
+            gap: 12px; 
+            margin-top: 10px; 
+        }
         
         .info-card {
-            background: var(--panel-bg); border: 1.5px solid var(--panel-border); border-radius: 12px;
-            padding: 18px; display: flex; flex-direction: column; gap: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);
-            position: relative;
+            background: var(--panel-bg); border: 1.5px solid var(--panel-border); border-radius: 10px;
+            padding: 14px; display: flex; flex-direction: column; gap: 8px; box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+            font-size: 0.85rem;
         }
-        .card-title { font-size: 1.05rem; font-weight: 800; color: var(--accent-gold); display: flex; justify-content: space-between; align-items: center; }
+        .card-title { font-size: 0.95rem; font-weight: 800; color: var(--accent-gold); display: flex; justify-content: space-between; align-items: center; }
         
         .action-btn {
-            background: var(--accent-blue); color: #fff; border: none; padding: 10px; border-radius: 8px;
-            font-weight: 700; cursor: pointer; transition: all 0.2s; margin-top: auto;
+            background: var(--accent-blue); color: #fff; border: none; padding: 8px; border-radius: 6px;
+            font-weight: 700; font-size: 0.82rem; cursor: pointer; transition: all 0.15s; margin-top: auto;
         }
         .action-btn:hover { background: #2563eb; }
         .action-btn.buy-btn { background: var(--accent-green); color: #000; }
-        .action-btn.buy-btn:hover { background: #059669; color: #fff; }
         .action-btn.upgrade-btn { background: var(--accent-gold); color: #000; }
         .action-btn.danger-btn { background: var(--accent-red); color: #fff; }
         .action-btn:disabled { background: #475569 !important; color: #94a3b8 !important; cursor: not-allowed; }
 
-        .status-badge { padding: 3px 8px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; }
+        .status-badge { padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; font-weight: 800; }
         .badge-owned { background: rgba(16, 185, 129, 0.2); color: var(--accent-green); border: 1px solid var(--accent-green); }
         .badge-locked { background: rgba(239, 68, 68, 0.2); color: var(--accent-red); border: 1px solid var(--accent-red); }
+        .badge-rush { background: rgba(239, 68, 68, 0.3); color: #fca5a5; border: 1px solid #ef4444; animation: pulse 1s infinite alternate; }
+        .badge-vip { background: rgba(139, 92, 246, 0.3); color: #c084fc; border: 1px solid #8b5cf6; }
 
-        #toast-container { position: absolute; bottom: 20px; left: 20px; z-index: 300; display: flex; flex-direction: column; gap: 10px; }
+        @keyframes pulse { from { opacity: 0.7; } to { opacity: 1; } }
+
+        #toast-container { position: absolute; bottom: 15px; left: 15px; z-index: 300; display: flex; flex-direction: column; gap: 8px; }
         .toast-msg {
-            background: rgba(30, 41, 59, 0.95); border: 1.5px solid var(--accent-blue); color: var(--text-main);
-            padding: 12px 20px; border-radius: 10px; font-size: 0.9rem; font-weight: 700;
-            box-shadow: 0 10px 20px rgba(0,0,0,0.5); animation: slideIn 0.3s ease forwards; display: flex; align-items: center; gap: 10px;
+            background: rgba(30, 41, 59, 0.98); border: 1.5px solid var(--accent-blue); color: var(--text-main);
+            padding: 10px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 700;
+            box-shadow: 0 8px 16px rgba(0,0,0,0.6); animation: slideIn 0.2s ease forwards; display: flex; align-items: center; gap: 8px;
         }
         .toast-msg.error { border-color: var(--accent-red); }
         .toast-msg.success { border-color: var(--accent-green); }
 
-        @keyframes slideIn { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        /* تذكير تدوير الشاشة للموبايل */
+        #orientation-warning {
+            display: none;
+            position: fixed; inset: 0; background: #020617; z-index: 9999;
+            flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 20px;
+        }
+        @media screen and (orientation: portrait) {
+            #orientation-warning { display: flex; }
+        }
+
+        @keyframes slideIn { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
     </style>
 </head>
 <body>
 
+<!-- رسالة تنبيه لتدوير شاشة الموبايل أفقياً -->
+<div id="orientation-warning">
+    <div style="font-size: 3rem; margin-bottom: 10px;">🔄</div>
+    <h2 style="color: var(--accent-gold); margin-bottom: 8px;">يرجى تدوير الهاتف للوضع الأفقي</h2>
+    <p style="color: var(--text-muted); font-size: 0.9rem;">تعمل اللعبة بأفضل كفاءة في الوضع الأفقي (Landscape)</p>
+</div>
+
 <div id="game-container">
 
-    <!-- نافذة طلب اسم التاجر عند البداية -->
+    <!-- نافذة طلب اسم التاجر -->
     <div class="modal-overlay hidden" id="name-modal">
         <div class="modal-card">
             <h2 style="color:var(--accent-gold);">📜 سجل اسمك التجاري</h2>
-            <p style="font-size:0.9rem; color:var(--text-muted);">اكتب اسمك لتصبح التاجر الرسمي للشركة ومقرها الرئيسي دمياط</p>
+            <p style="font-size:0.85rem; color:var(--text-muted);">اكتب اسمك لتصبح التاجر الرسمي للشركة ومقرها الرئيسي دمياط</p>
             <input type="text" id="player-name-input" class="modal-input" placeholder="اكتب اسمك هنا..." maxlength="20">
             <button class="menu-btn primary" onclick="confirmPlayerName()">دخول السوق والبدء 🚀</button>
         </div>
     </div>
 
-    <!-- نافذة تعديل الاسم التجاري -->
+    <!-- نافذة تعديل الاسم -->
     <div class="modal-overlay hidden" id="edit-name-modal">
         <div class="modal-card">
             <h2 style="color:var(--accent-gold);">✏️ تعديل الاسم التجاري</h2>
@@ -165,12 +274,12 @@
         </div>
     </div>
 
-    <!-- نافذة تصدير كود الحفظ -->
+    <!-- تصدير الكود -->
     <div class="modal-overlay hidden" id="export-code-modal">
         <div class="modal-card">
             <h2 style="color:var(--accent-gold);">🔑 كود استرجاع التقدم</h2>
-            <p style="font-size:0.85rem; color:var(--text-muted);">قم بنسخ هذا الكود واحتفظ به لاستعادة تقدمك في أي وقت:</p>
-            <textarea id="export-code-area" class="modal-textarea" rows="4" readonly></textarea>
+            <p style="font-size:0.8rem; color:var(--text-muted);">انسخ هذا الكود واحتفظ به لاستعادة تقدمك في أي وقت:</p>
+            <textarea id="export-code-area" class="modal-textarea" rows="3" readonly></textarea>
             <div class="modal-actions">
                 <button class="menu-btn primary" onclick="copySaveCode()">نسخ الكود 📋</button>
                 <button class="menu-btn" onclick="closeModal('export-code-modal')">إغلاق</button>
@@ -178,12 +287,12 @@
         </div>
     </div>
 
-    <!-- نافذة استيراد كود الحفظ -->
+    <!-- استيراد الكود -->
     <div class="modal-overlay hidden" id="import-code-modal">
         <div class="modal-card">
             <h2 style="color:var(--accent-gold);">📥 استرجاع التقدم عبر الكود</h2>
-            <p style="font-size:0.85rem; color:var(--text-muted);">الصق كود الحفظ الخاص بك أدناه لاستعادة بياناتك:</p>
-            <textarea id="import-code-area" class="modal-textarea" rows="4" placeholder="الصق كود الاسترجاع هنا..."></textarea>
+            <p style="font-size:0.8rem; color:var(--text-muted);">الصق كود الحفظ الخاص بك أدناه:</p>
+            <textarea id="import-code-area" class="modal-textarea" rows="3" placeholder="الصق كود الاسترجاع هنا..."></textarea>
             <div class="modal-actions">
                 <button class="menu-btn primary" onclick="applyImportCode()">استرجاع البيانات 🚀</button>
                 <button class="menu-btn" onclick="closeModal('import-code-modal')">إغلاق</button>
@@ -191,11 +300,11 @@
         </div>
     </div>
 
-    <!-- نافذة تأكيد إعادة الضبط الشامل -->
+    <!-- إعادة الضبط -->
     <div class="modal-overlay hidden" id="reset-confirm-modal">
         <div class="modal-card danger-modal">
             <h2 style="color:var(--accent-red);">⚠️ تأكيد إعادة الضبط الشامل</h2>
-            <p style="font-size:0.9rem; color:var(--text-muted);">هل أنت أطراف بتأكيد مسح كافة بيانات اللعبة والبدء من جديد؟ لن يمكنك التراجع عن هذه الخطوة!</p>
+            <p style="font-size:0.85rem; color:var(--text-muted);">هل أنت متأكد من مسح كافة البيانات؟ لن يمكنك التراجع عن هذه الخطوة!</p>
             <div class="modal-actions">
                 <button class="menu-btn danger" onclick="executeGameReset()">نعم، امسح كل شيء 🗑️</button>
                 <button class="menu-btn" onclick="closeModal('reset-confirm-modal')">إلغاء</button>
@@ -203,39 +312,40 @@
         </div>
     </div>
 
-    <!-- شاشة اللعبة والداشبورد -->
+    <!-- الداشبورد الرئيسية -->
     <div class="screen hidden" id="dashboard-screen">
         <div class="top-bar">
-            <div style="font-weight:800; color:var(--accent-gold);">🏢 شركة <span id="display-player-name">التاجر</span> للتوزيع (دمياط)</div>
+            <div class="company-title">🏢 شركة <span id="display-player-name">التاجر</span> (دمياط)</div>
             <div class="stats-group">
                 <div class="stat-pill">📅 شهر: <b id="game-month" style="color:var(--accent-blue)">1</b> <div class="month-progress-bar"><div class="month-progress-fill" id="month-progress"></div></div></div>
-                <div class="stat-pill">⭐ المستوى: <b id="player-lvl" style="color:var(--accent-gold)">1</b></div>
-                <div class="stat-pill">💰 الخزينة: <b id="player-money" style="color:var(--accent-green)">500,000 ج.م</b></div>
-                <div class="stat-pill">🏦 القروض: <b id="player-loan" style="color:var(--accent-red)">0 ج.م</b></div>
-                <div class="stat-pill">🚚 الشاحنات: <b id="trucks-status" style="color:var(--accent-blue)">0 / 0</b></div>
-                <div class="stat-pill">📦 المخزن: <b id="wh-capacity">0 / 0</b></div>
+                <div class="stat-pill">⭐ لفل: <b id="player-lvl" style="color:var(--accent-gold)">1</b></div>
+                <div class="stat-pill">💰 <b id="player-money" style="color:var(--accent-green)">500,000 ج.م</b></div>
+                <div class="stat-pill">🏦 قرض: <b id="player-loan" style="color:var(--accent-red)">0 ج.م</b></div>
+                <div class="stat-pill">🚚 شاحنات: <b id="trucks-status" style="color:var(--accent-blue)">0 / 0</b></div>
+                <div class="stat-pill">📦 مخزن: <b id="wh-capacity">0 / 0</b></div>
             </div>
         </div>
 
         <div class="dashboard-layout">
             <div class="sidebar">
-                <div style="font-size:0.75rem; color:var(--text-muted); font-weight:800;">الإدارات الرئيسيّة</div>
-                <button class="nav-btn active" id="btn-admin" onclick="showTab('admin', this)">👔 إدارة المدير <span>🔓</span></button>
-                <button class="nav-btn" id="btn-map" onclick="showTab('map', this)">🗺️ خريطة المحافظات <span>🇪🇬</span></button>
-                <button class="nav-btn" id="btn-sales" onclick="showTab('sales', this)">📈 إدارة المبيعات <span>🔓</span></button>
-                <button class="nav-btn" id="btn-hr" onclick="showTab('hr', this)">👥 إدارة التوظيف <span>🔓</span></button>
-                <button class="nav-btn" id="btn-marketing" onclick="showTab('marketing', this)">📢 إدارة التسويق <span>🔓</span></button>
-                <button class="nav-btn" id="btn-finance" onclick="showTab('finance', this)">📑 الحسابات والبنك <span>🔓</span></button>
+                <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800;">الإدارات الرئيسيّة</div>
+                <button class="nav-btn active" id="btn-admin" onclick="showTab('admin', this)">👔 المدير <span>🔓</span></button>
+                <button class="nav-btn" id="btn-map" onclick="showTab('map', this)">🗺️ الخريطة <span>🇪🇬</span></button>
+                <button class="nav-btn" id="btn-sales" onclick="showTab('sales', this)">📈 المبيعات <span>🔓</span></button>
+                <button class="nav-btn" id="btn-hr" onclick="showTab('hr', this)">👥 التوظيف <span>🔓</span></button>
+                <button class="nav-btn" id="btn-marketing" onclick="showTab('marketing', this)">📢 التسويق <span>🔓</span></button>
+                <button class="nav-btn" id="btn-finance" onclick="showTab('finance', this)">📑 البنك <span>🔓</span></button>
 
-                <div style="font-size:0.75rem; color:var(--text-muted); font-weight:800; margin-top:10px;">أصول الشركة والعمليات</div>
-                <button class="nav-btn" id="btn-company" onclick="showTab('company', this)">🏢 مقر الشركة (دمياط)</button>
+                <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800; margin-top:6px;">أصول الشركة</div>
+                <button class="nav-btn" id="btn-company" onclick="showTab('company', this)">🏢 المقر (دمياط)</button>
                 <button class="nav-btn" id="btn-warehouse" onclick="showTab('warehouse', this)">🏭 المخزن والبضائع</button>
                 <button class="nav-btn" id="btn-fleet" onclick="showTab('fleet', this)">🚚 أسطول السيارات</button>
-                <button class="nav-btn" id="btn-contracts" onclick="showTab('contracts', this)">📄 العقود والشركات</button>
-                <button class="nav-btn" id="btn-deals" onclick="showTab('deals', this)">🤝 السوق والصفقات الحية</button>
+                <button class="nav-btn" id="btn-contracts" onclick="showTab('contracts', this)">📄 عقود التوريد</button>
+                <button class="nav-btn" id="btn-deals" onclick="showTab('deals', this)">🤝 السوق والصفقات</button>
+                <button class="nav-btn" id="btn-quests" onclick="showTab('quests', this)">🎯 المهام الإنجازات</button>
                 
-                <div style="font-size:0.75rem; color:var(--text-muted); font-weight:800; margin-top:10px;">أمان البيانات</div>
-                <button class="nav-btn" id="btn-settings" onclick="showTab('settings', this)">🛡️ حماية التقدم <span>🔒</span></button>
+                <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800; margin-top:6px;">البيانات والضبط</div>
+                <button class="nav-btn" id="btn-settings" onclick="showTab('settings', this)">🛡️ حفظ التقدم <span>🔒</span></button>
             </div>
 
             <div class="main-content" id="tab-content"></div>
@@ -245,962 +355,6 @@
     <div id="toast-container"></div>
 </div>
 
-<script>
-    const GAME_VERSION = "2.5.0";
-    const SAVE_KEY_PRIMARY = 'trader_real_save_v3';
-    const SAVE_KEY_BACKUP = 'trader_real_save_backup_v3';
-    const MONTH_DURATION_SECONDS = 3600; // الشهر = ساعة واحدة (3600 ثانية)
-    const WAREHOUSE_EXPAND_COST = 50000; 
-
-    const governoratesData = [
-        { id: 'domyat', name: 'دمياط (المقر الرئيسي)', minLvl: 1, cost: 0, unlocked: true, bonus: 0, deliveryTime: 10 },
-        { id: 'dakahlia', name: 'الدقهلية (المنصورة)', minLvl: 2, cost: 120000, unlocked: false, bonus: 0.20, deliveryTime: 15 },
-        { id: 'sharqia', name: 'الشرقية (الزقازيق)', minLvl: 3, cost: 250000, unlocked: false, bonus: 0.20, deliveryTime: 20 },
-        { id: 'cairo', name: 'القاهرة الكبرى', minLvl: 4, cost: 500000, unlocked: false, bonus: 0.30, deliveryTime: 30 },
-        { id: 'alex', name: 'الإسكندرية', minLvl: 5, cost: 800000, unlocked: false, bonus: 0.35, deliveryTime: 35 }
-    ];
-
-    const defaultGameState = {
-        version: GAME_VERSION,
-        playerName: 'تاجر جديد',
-        level: 1,
-        money: 500000,
-        loan: 0,
-        month: 1,
-        monthProgressTimer: 0,
-        marketingLevel: 0,
-        marketingMultiplier: 1,
-        office: { owned: false, level: 1 },
-        warehouse: { owned: false, level: 1, capacity: 0, stock: { dairy: 0, cleaners: 0 } },
-        trucks: 0,
-        activeDeliveries: [],
-        staff: { drivers: 0, reps: [] },
-        signedContracts: { dairy: false, cleaners: false },
-        governorates: governoratesData,
-        marketDeals: [],
-        currentTab: 'admin',
-        totalRevenueGenerated: 0,
-        lastSavedTime: Date.now()
-    };
-
-    let gameState = JSON.parse(JSON.stringify(defaultGameState));
-    const clientNames = ["سوبرماركت التقوى", "هايبر الأمل", "أسواق مكة", "ماركت الأمانة", "سلسلة الجملة", "ميني ماركت البركة", "أسواق المدينة"];
-
-    window.addEventListener('DOMContentLoaded', () => {
-        const hasSaved = loadGameData(false);
-        if(!hasSaved) {
-            document.getElementById('name-modal').classList.remove('hidden');
-            document.getElementById('player-name-input').focus();
-        }
-    });
-
-    window.addEventListener('beforeunload', () => {
-        saveGameData(false);
-    });
-
-    // المحرك الأساسي: يحدث كل ثانية
-    setInterval(() => {
-        if (!document.getElementById('dashboard-screen').classList.contains('hidden')) {
-            gameState.monthProgressTimer++;
-            const progressPercent = (gameState.monthProgressTimer / MONTH_DURATION_SECONDS) * 100;
-            document.getElementById('month-progress').style.width = `${progressPercent}%`;
-
-            if (gameState.monthProgressTimer >= MONTH_DURATION_SECONDS) {
-                gameState.monthProgressTimer = 0;
-                processMonthlyExpenses();
-            }
-
-            processDeliveries();
-            runAIReps();
-            checkLevelProgress();
-            saveGameData(false);
-        }
-    }, 1000);
-
-    // توليد الصفقات الحية كل 15 ثانية
-    setInterval(() => {
-        if (!document.getElementById('dashboard-screen').classList.contains('hidden')) {
-            generateMarketDeal();
-        }
-    }, 15000);
-
-    function saveGameData(isManual = false) {
-        try {
-            gameState.lastSavedTime = Date.now();
-            const dataStr = JSON.stringify(gameState);
-            localStorage.setItem(SAVE_KEY_PRIMARY, dataStr);
-            localStorage.setItem(SAVE_KEY_BACKUP, dataStr);
-            if(isManual) showToast("تم حفظ جميع بيانات الشركة بنجاح!", "success");
-        } catch(e) {
-            console.error(e);
-        }
-    }
-
-    function loadGameData(isManual = false) {
-        try {
-            let dataStr = localStorage.getItem(SAVE_KEY_PRIMARY) || localStorage.getItem(SAVE_KEY_BACKUP);
-            if(dataStr) {
-                const loaded = JSON.parse(dataStr);
-                gameState = Object.assign({}, JSON.parse(JSON.stringify(defaultGameState)), loaded);
-                document.getElementById('dashboard-screen').classList.remove('hidden');
-                updateUI();
-                showTab(gameState.currentTab || 'admin');
-                if(isManual) showToast("تم استرجاع التقدم بنجاح!", "success");
-                return true;
-            }
-        } catch(e) {
-            console.error("خطأ في التحميل", e);
-        }
-        return false;
-    }
-
-    function processDeliveries() {
-        if (!gameState.activeDeliveries || gameState.activeDeliveries.length === 0) return;
-
-        for (let i = gameState.activeDeliveries.length - 1; i >= 0; i--) {
-            let delivery = gameState.activeDeliveries[i];
-            delivery.timeLeft--;
-
-            if (delivery.timeLeft <= 0) {
-                gameState.money += delivery.totalRevenue;
-                gameState.totalRevenueGenerated += delivery.totalRevenue;
-
-                if (delivery.repIndex !== undefined && gameState.staff.reps[delivery.repIndex]) {
-                    let rep = gameState.staff.reps[delivery.repIndex];
-                    let commission = Math.round(delivery.totalRevenue * 0.04);
-                    rep.unpaidCommission += commission;
-                    rep.totalSales += delivery.totalRevenue;
-                }
-
-                showToast(`🚚 عادت الشاحنة من رحلتها لـ (${delivery.govName})! تم تسليم البضاعة وتحصيل ${delivery.totalRevenue.toLocaleString()} ج.م أرباح.`, "success");
-                gameState.activeDeliveries.splice(i, 1);
-                updateUI();
-                if (gameState.currentTab === 'fleet' || gameState.currentTab === 'deals') showTab(gameState.currentTab);
-            }
-        }
-    }
-
-    function processMonthlyExpenses() {
-        gameState.month++;
-        const driverSalaries = gameState.staff.drivers * 4000;
-        const repSalaries = gameState.staff.reps.length * 3500;
-        const truckMaintenance = gameState.trucks * 2500;
-        const loanInterest = gameState.loan > 0 ? 11000 : 0;
-
-        const totalExpenses = driverSalaries + repSalaries + truckMaintenance + loanInterest;
-        gameState.money -= totalExpenses;
-
-        document.getElementById('game-month').innerText = gameState.month;
-        updateUI();
-        showToast(`📆 انتهى الشهر ${gameState.month - 1}! تم خصم الرواتب والصيانة والفوائد بمبلغ ${totalExpenses.toLocaleString()} ج.م من الخزينة.`, "error");
-        
-        if (gameState.currentTab === 'admin') showTab('admin');
-    }
-
-    function confirmPlayerName() {
-        const inputVal = document.getElementById('player-name-input').value.trim();
-        const finalName = inputVal ? `التاجر ${inputVal}` : 'التاجر الجديد';
-        
-        gameState.playerName = finalName;
-
-        document.getElementById('name-modal').classList.add('hidden');
-        document.getElementById('dashboard-screen').classList.remove('hidden');
-
-        showTab('admin', document.getElementById('btn-admin'));
-        updateUI();
-        saveGameData(false);
-        showToast(`أهلاً بك يا ${gameState.playerName}! ابدأ تأسيس تجارتك من مقرك الرئيسي بدمياط.`, "success");
-    }
-
-    function openEditNameModal() {
-        document.getElementById('edit-name-input').value = gameState.playerName.replace('التاجر ', '');
-        document.getElementById('edit-name-modal').classList.remove('hidden');
-    }
-
-    function saveNewPlayerName() {
-        const val = document.getElementById('edit-name-input').value.trim();
-        if(val) {
-            gameState.playerName = `التاجر ${val}`;
-            updateUI();
-            closeModal('edit-name-modal');
-            showToast("تم تحديث اسمك التجاري بنجاح!", "success");
-            if(gameState.currentTab === 'admin') showTab('admin');
-        }
-    }
-
-    function openExportModal() {
-        saveGameData(false);
-        const dataStr = JSON.stringify(gameState);
-        const code = btoa(encodeURIComponent(dataStr));
-        document.getElementById('export-code-area').value = code;
-        document.getElementById('export-code-modal').classList.remove('hidden');
-    }
-
-    function copySaveCode() {
-        const area = document.getElementById('export-code-area');
-        area.select();
-        document.execCommand('copy');
-        showToast("تم نسخ كود الاسترجاع إلى الحافظة بنجاح!", "success");
-    }
-
-    function openImportModal() {
-        document.getElementById('import-code-area').value = "";
-        document.getElementById('import-code-modal').classList.remove('hidden');
-    }
-
-    function applyImportCode() {
-        const code = document.getElementById('import-code-area').value.trim();
-        if(!code) return showToast("يرجى إدخال الكود أولاً!", "error");
-
-        try {
-            const decodedStr = decodeURIComponent(atob(code));
-            const parsedData = JSON.parse(decodedStr);
-
-            if(parsedData && parsedData.playerName) {
-                gameState = Object.assign({}, JSON.parse(JSON.stringify(defaultGameState)), parsedData);
-                saveGameData(false);
-                updateUI();
-                closeModal('import-code-modal');
-                showTab('admin');
-                showToast("تم استعادة كافة البيانات وحفظها بنجاح! مرحباً بعودتك.", "success");
-            } else {
-                showToast("كود الاسترجاع غير صالح!", "error");
-            }
-        } catch(e) {
-            showToast("حدث خطأ أثناء فك تشفير الكود! تأكد من صحته.", "error");
-        }
-    }
-
-    function openResetConfirmModal() {
-        document.getElementById('reset-confirm-modal').classList.remove('hidden');
-    }
-
-    function executeGameReset() {
-        localStorage.removeItem(SAVE_KEY_PRIMARY);
-        localStorage.removeItem(SAVE_KEY_BACKUP);
-        gameState = JSON.parse(JSON.stringify(defaultGameState));
-        closeModal('reset-confirm-modal');
-        document.getElementById('dashboard-screen').classList.add('hidden');
-        document.getElementById('name-modal').classList.remove('hidden');
-        document.getElementById('player-name-input').value = "";
-        showToast("تم مسح كافة البيانات وإعادة اللعبة للوضع الافتراضي.", "info");
-    }
-
-    function closeModal(id) {
-        document.getElementById(id).classList.add('hidden');
-    }
-
-    function getAvailableTrucks() {
-        const busyTrucks = gameState.activeDeliveries ? gameState.activeDeliveries.length : 0;
-        return Math.max(0, gameState.trucks - busyTrucks);
-    }
-
-    function updateUI() {
-        document.getElementById('display-player-name').innerText = gameState.playerName;
-        document.getElementById('player-money').innerText = gameState.money.toLocaleString() + " ج.م";
-        document.getElementById('player-loan').innerText = gameState.loan.toLocaleString() + " ج.م";
-        document.getElementById('player-lvl').innerText = gameState.level;
-        document.getElementById('game-month').innerText = gameState.month;
-        
-        const availableTrucks = getAvailableTrucks();
-        document.getElementById('trucks-status').innerText = `${availableTrucks} متاحة / ${gameState.trucks}`;
-
-        const totalStock = (gameState.warehouse.stock?.dairy || 0) + (gameState.warehouse.stock?.cleaners || 0);
-        document.getElementById('wh-capacity').innerText = `${totalStock} / ${gameState.warehouse.capacity || 0}`;
-    }
-
-    function checkLevelProgress() {
-        const newLevel = Math.floor(gameState.totalRevenueGenerated / 250000) + 1;
-        if (newLevel > gameState.level) {
-            gameState.level = newLevel;
-            showToast(`🎉 مبروك يا ${gameState.playerName}! ارتفع مستواك الفعلي إلى Level ${gameState.level}! يمكنك فتح محافظات جديدة الآن!`, "success");
-            updateUI();
-        }
-    }
-
-    function showToast(message, type = "info") {
-        const container = document.getElementById('toast-container');
-        const toast = document.createElement('div');
-        toast.className = `toast-msg ${type}`;
-        let icon = type === "success" ? "✅" : (type === "error" ? "⚠️" : "🔔");
-        toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
-        container.appendChild(toast);
-        setTimeout(() => {
-            toast.style.opacity = '0';
-            toast.style.transform = 'translateX(-100%)';
-            toast.style.transition = 'all 0.5s ease';
-            setTimeout(() => toast.remove(), 500);
-        }, 3200);
-    }
-
-    function generateMarketDeal() {
-        if (!gameState.office.owned) return;
-        
-        if (gameState.marketDeals.length >= (5 + gameState.marketingLevel)) gameState.marketDeals.shift();
-
-        const unlockedGovs = gameState.governorates.filter(g => g.unlocked);
-        if (unlockedGovs.length === 0) return;
-        const selectedGov = unlockedGovs[Math.floor(Math.random() * unlockedGovs.length)];
-
-        const products = [];
-        if (gameState.signedContracts.dairy) products.push({ id: 'dairy', name: 'ألبان', buyPrice: 18, baseSell: 22 });
-        if (gameState.signedContracts.cleaners) products.push({ id: 'cleaners', name: 'منظفات', buyPrice: 40, baseSell: 52 });
-
-        if (products.length === 0) return;
-
-        const prod = products[Math.floor(Math.random() * products.length)];
-        const client = clientNames[Math.floor(Math.random() * clientNames.length)];
-        const qty = (Math.floor(Math.random() * 4) + 1) * 20; 
-        
-        const priceVariance = Math.floor(Math.random() * 6) - 2; 
-        let pricePerUnit = prod.baseSell + priceVariance;
-        
-        let totalRev = Math.round(qty * pricePerUnit * gameState.marketingMultiplier * (1 + selectedGov.bonus));
-
-        const newDeal = {
-            id: Date.now(),
-            govId: selectedGov.id,
-            govName: selectedGov.name,
-            deliveryTime: selectedGov.deliveryTime || 15,
-            client: client,
-            product: prod.id,
-            productName: prod.name,
-            qty: qty,
-            pricePerUnit: pricePerUnit,
-            totalRevenue: totalRev
-        };
-
-        gameState.marketDeals.push(newDeal);
-        if (gameState.currentTab === 'deals') showTab('deals');
-    }
-
-    function runAIReps() {
-        if (!gameState.staff.reps || gameState.staff.reps.length === 0 || gameState.marketDeals.length === 0) return;
-
-        const availableTrucks = getAvailableTrucks();
-        if (availableTrucks <= 0 || gameState.staff.drivers <= gameState.activeDeliveries.length) return;
-
-        gameState.staff.reps.forEach((rep, repIndex) => {
-            const successRate = 0.20 + (rep.skill * 0.08); 
-            if (Math.random() < successRate && gameState.marketDeals.length > 0 && getAvailableTrucks() > 0) {
-                const dealIndex = Math.floor(Math.random() * gameState.marketDeals.length);
-                const deal = gameState.marketDeals[dealIndex];
-
-                if (gameState.warehouse.stock[deal.product] >= deal.qty) {
-                    gameState.warehouse.stock[deal.product] -= deal.qty;
-
-                    gameState.activeDeliveries.push({
-                        id: Date.now(),
-                        client: deal.client,
-                        govName: deal.govName,
-                        totalRevenue: deal.totalRevenue,
-                        timeLeft: deal.deliveryTime,
-                        totalTime: deal.deliveryTime,
-                        repIndex: repIndex
-                    });
-
-                    gameState.marketDeals.splice(dealIndex, 1);
-                    showToast(`🤖 المندوب (${rep.name}) خرج بشاحنة لتوصيل طلب لـ ${deal.govName}!`, "info");
-                    updateUI();
-                    if (gameState.currentTab === 'sales' || gameState.currentTab === 'deals' || gameState.currentTab === 'fleet') showTab(gameState.currentTab);
-                }
-            }
-        });
-    }
-
-    function unlockGovernorate(govId) {
-        const gov = gameState.governorates.find(g => g.id === govId);
-        if(!gov) return;
-
-        if (gameState.level < gov.minLvl) return showToast(`يجب الوصول للمستوى ${gov.minLvl} أولاً لفتح هذه المحافظة!`, "error");
-        if (gameState.money < gov.cost) return showToast(`الرصيد غير كاف لشراء التوسع في ${gov.name}!`, "error");
-
-        gameState.money -= gov.cost;
-        gov.unlocked = true;
-        updateUI();
-        showToast(`🎉 تم فتح التوزيع الرسمي في ${gov.name}! زيادة أرباح الصفقات +${gov.bonus * 100}%`, "success");
-        showTab('map');
-    }
-
-    function expandWarehouseCapacity() {
-        if (gameState.money < WAREHOUSE_EXPAND_COST) {
-            return showToast(`الرصيد غير كاف لتوسعة المخزن! تحتاج ${WAREHOUSE_EXPAND_COST.toLocaleString()} ج.م`, "error");
-        }
-
-        gameState.money -= WAREHOUSE_EXPAND_COST;
-        gameState.warehouse.capacity += 300;
-        updateUI();
-        showToast(`📦 تم توسعة المخزن بنجاح! السعة الجديدة: ${gameState.warehouse.capacity} كرتونة`, "success");
-        showTab('warehouse');
-    }
-
-    function buyWarehouse(cost, cap) {
-        if(gameState.money < cost) return showToast("الرصيد غير كاف لشراء المخزن!", "error");
-        gameState.money -= cost;
-        gameState.warehouse.owned = true;
-        gameState.warehouse.capacity = cap;
-        updateUI();
-        showToast("🏭 تم شراء أول مخزن لك بنجاح!", "success");
-        showTab('warehouse');
-    }
-
-    function buyStock(product, pricePerUnit, count) {
-        const totalCost = pricePerUnit * count;
-        const currentStock = (gameState.warehouse.stock.dairy || 0) + (gameState.warehouse.stock.cleaners || 0);
-        if(currentStock + count > gameState.warehouse.capacity) return showToast("المخزن لا يتسع لهذة الكمية!", "error");
-        if(gameState.money < totalCost) return showToast("الرصيد غير كاف لشراء البضاعة!", "error");
-
-        gameState.money -= totalCost;
-        gameState.warehouse.stock[product] = (gameState.warehouse.stock[product] || 0) + count;
-        updateUI();
-        showToast(`📦 تم شراء ${count} كرتونة بضاعة بنجاح!`, "success");
-        showTab('warehouse');
-    }
-
-    function buyOffice(cost) {
-        if(gameState.money < cost) return showToast("الرصيد غير كاف لشراء المقر!", "error");
-        gameState.money -= cost;
-        gameState.office.owned = true;
-        updateUI();
-        showToast("🏢 تم تأسيس المقر الرئيسي بدمياط بنجاح!", "success");
-        showTab('company');
-    }
-
-    function upgradeOffice(cost) {
-        if(gameState.money < cost) return showToast("الرصيد غير كاف للتطوير!", "error");
-        gameState.money -= cost;
-        gameState.office.level++;
-        updateUI();
-        showToast("✨ تم تطوير المقر الرئيسي!", "success");
-        showTab('company');
-    }
-
-    function buyTruck() {
-        const cost = 80000;
-        if(gameState.money < cost) return showToast("الرصيد غير كاف لشراء شاحنة!", "error");
-        gameState.money -= cost;
-        gameState.trucks++;
-        updateUI();
-        showToast("🚚 تم إضافة شاحنة جديدة للأسطول!", "success");
-        showTab('fleet');
-    }
-
-    function hireDriver() {
-        const cost = 5000;
-        if(gameState.money < cost) return showToast("الرصيد غير كاف لتعيين سائق!", "error");
-        gameState.money -= cost;
-        gameState.staff.drivers++;
-        updateUI();
-        showToast("👨‍✈️ تم تعيين سائق جديد!", "success");
-        showTab('hr');
-    }
-
-    function hireRep() {
-        const cost = 10000;
-        if(gameState.money < cost) return showToast("الرصيد غير كاف لتعيين مندوب!", "error");
-        gameState.money -= cost;
-        const names = ["أحمد", "محمود", "إبراهيم", "سيد", "مصطفى", "حسن", "علي"];
-        const randomName = names[Math.floor(Math.random() * names.length)];
-        gameState.staff.reps.push({
-            name: randomName,
-            skill: Math.floor(Math.random() * 3) + 1,
-            totalSales: 0,
-            unpaidCommission: 0
-        });
-        updateUI();
-        showToast("👨‍💼 تم تعيين مندوب مبيعات جديد!", "success");
-        showTab('hr');
-    }
-
-    function payCommission(index) {
-        const rep = gameState.staff.reps[index];
-        if(!rep || rep.unpaidCommission <= 0) return showToast("لا يوجد عمولة مستحقة للصرف!", "error");
-        if(gameState.money < rep.unpaidCommission) return showToast("الرصيد غير كاف لصرف العمولة!", "error");
-
-        gameState.money -= rep.unpaidCommission;
-        showToast(`💸 تم صرف مبلغ ${rep.unpaidCommission.toLocaleString()} ج.م للمندوب ${rep.name}`, "success");
-        rep.unpaidCommission = 0;
-        updateUI();
-        showTab('sales');
-    }
-
-    function signContract(type, cost) {
-        if(gameState.money < cost) return showToast("الرصيد غير كاف لتوقيع العقد!", "error");
-        gameState.money -= cost;
-        gameState.signedContracts[type] = true;
-        updateUI();
-        showToast("📄 تم توقيع عقد التوريد بنجاح!", "success");
-        showTab('contracts');
-    }
-
-    function upgradeMarketing(cost, multiplier) {
-        if(gameState.money < cost) return showToast("الرصيد غير كاف لترقية التسويق!", "error");
-        gameState.money -= cost;
-        gameState.marketingLevel++;
-        gameState.marketingMultiplier = multiplier;
-        updateUI();
-        showToast("📢 تم ترقية الحملة التسويقية وزيادة الأرباح!", "success");
-        showTab('marketing');
-    }
-
-    function takeLoan(amount) {
-        if(gameState.loan > 0) return showToast("لديك قروض سابقة لم تقم بسدادها بعد!", "error");
-        gameState.money += amount;
-        gameState.loan += Math.round(amount * 1.15); 
-        updateUI();
-        showToast(`🏦 تم الحصول على قرض بقيمة ${amount.toLocaleString()} ج.م بفائدة 15%`, "success");
-        showTab('finance');
-    }
-
-    function payLoan() {
-        if(gameState.loan <= 0) return showToast("ليس عليك أي قروض حالياً!", "error");
-        if(gameState.money < gameState.loan) return showToast("الرصيد غير كاف لسداد القرض بالكامل!", "error");
-
-        gameState.money -= gameState.loan;
-        showToast(`🎉 تم سداد كامل القرض البالغ ${gameState.loan.toLocaleString()} ج.م بنجاح!`, "success");
-        gameState.loan = 0;
-        updateUI();
-        showTab('finance');
-    }
-
-    function executeManualDeal(dealId) {
-        const dealIndex = gameState.marketDeals.findIndex(d => d.id === dealId);
-        if(dealIndex === -1) return;
-        const deal = gameState.marketDeals[dealIndex];
-
-        const availableTrucks = getAvailableTrucks();
-        if(gameState.trucks <= 0) return showToast("لا تملك أي شاحنات لشحن الطلبات!", "error");
-        if(availableTrucks <= 0) return showToast("جميع شاحناتك مشغولة حالياً في رحلات توصيل أخرى!", "error");
-        if(gameState.staff.drivers <= gameState.activeDeliveries.length) return showToast("لا يوجد سائق متاح حالياً!", "error");
-        if((gameState.warehouse.stock[deal.product] || 0) < deal.qty) return showToast("البضاعة غير متوفرة في المخزن لهذا الطلب!", "error");
-
-        gameState.warehouse.stock[deal.product] -= deal.qty;
-        
-        gameState.activeDeliveries.push({
-            id: Date.now(),
-            client: deal.client,
-            govName: deal.govName,
-            totalRevenue: deal.totalRevenue,
-            timeLeft: deal.deliveryTime,
-            totalTime: deal.deliveryTime
-        });
-
-        gameState.marketDeals.splice(dealIndex, 1);
-
-        updateUI();
-        showToast(`🚚 خرجت الشاحنة لتوصيل الطلب إلى ${deal.govName}! استغراق الرحلة: ${deal.deliveryTime} ثوانٍ`);
-    }
-
-    // عرض التبويبات واجهات التفاعل الكاملة
-    function showTab(tabName, btnElement = null) {
-        gameState.currentTab = tabName;
-        
-        if(btnElement) {
-            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-            btnElement.classList.add('active');
-        } else {
-            const currentBtn = document.getElementById(`btn-${tabName}`);
-            if(currentBtn) {
-                document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active'));
-                currentBtn.classList.add('active');
-            }
-        }
-
-        const container = document.getElementById('tab-content');
-        container.innerHTML = '';
-
-        if(tabName === 'admin') {
-            const monthlySalaries = (gameState.staff.drivers * 4000) + (gameState.staff.reps.length * 3500);
-            const monthlyTrucks = gameState.trucks * 2500;
-            const monthlyLoan = gameState.loan > 0 ? 11000 : 0;
-            const totalMonthly = monthlySalaries + monthlyTrucks + monthlyLoan;
-
-            container.innerHTML = `
-                <h2>👔 إدارة المدير التنفيذي</h2>
-                <p style="color:var(--text-muted); margin-top:5px;">لوحة النظرة العامة على أدائك التجاري ومقر عملك في دمياط</p>
-                <div class="card-grid">
-                    <div class="info-card">
-                        <div class="card-title">📜 الهوية التجارية <button class="action-btn" style="padding:4px 8px; font-size:0.8rem;" onclick="openEditNameModal()">تعديل ✏️</button></div>
-                        <div><b>اسم التاجر:</b> ${gameState.playerName}</div>
-                        <div><b>المقر الرئيسي:</b> دمياط (محافظات التوزيع)</div>
-                        <div><b>المستوى التجاري:</b> Level ${gameState.level}</div>
-                        <div><b>إجمالي المبيعات المحققة:</b> ${gameState.totalRevenueGenerated.toLocaleString()} ج.م</div>
-                    </div>
-                    <div class="info-card">
-                        <div class="card-title">📉 الالتزامات الشهرية الدورية</div>
-                        <div><b>رواتب الموظفين:</b> ${monthlySalaries.toLocaleString()} ج.م</div>
-                        <div><b>صيانة الأسطول:</b> ${monthlyTrucks.toLocaleString()} ج.م</div>
-                        <div><b>فوائد القروض:</b> ${monthlyLoan.toLocaleString()} ج.م</div>
-                        <div style="border-top:1px solid var(--panel-border); padding-top:5px; margin-top:5px;">
-                            <b style="color:var(--accent-red)">إجمالي التكاليف الشهرية:</b> ${totalMonthly.toLocaleString()} ج.م
-                        </div>
-                    </div>
-                    <div class="info-card">
-                        <div class="card-title">🚚 جاهزية عمليات الشحن</div>
-                        <div><b>الشاحنات المتاحة:</b> ${getAvailableTrucks()} من أصل ${gameState.trucks}</div>
-                        <div><b>السائقون المتاحون:</b> ${gameState.staff.drivers - gameState.activeDeliveries.length} من أصل ${gameState.staff.drivers}</div>
-                        <div><b>مندوبو المبيعات:</b> ${gameState.staff.reps.length} مندوب عمل ميداني</div>
-                    </div>
-                </div>
-            `;
-        }
-
-        else if(tabName === 'map') {
-            let html = `<h2>🗺️ خريطة محافظات التوزيع بالجمهورية</h2>
-            <p style="color:var(--text-muted); margin-top:5px;">افتح محافظات جديدة لزيادة نسبة أرباحك الصافية من كل صفقة لتوسيع تجارتك</p>
-            <div class="card-grid">`;
-
-            gameState.governorates.forEach(g => {
-                const isUnlocked = g.unlocked;
-                const canUnlock = gameState.level >= g.minLvl;
-
-                html += `
-                    <div class="info-card" style="border-color:${isUnlocked ? 'var(--accent-green)' : 'var(--panel-border)'}">
-                        <div class="card-title">
-                            ${g.name}
-                            ${isUnlocked ? '<span class="status-badge badge-owned">مفتوحة للعمل</span>' : '<span class="status-badge badge-locked">مغلقة</span>'}
-                        </div>
-                        <div><b>مستوى الفتح المطلوب:</b> Level ${g.minLvl}</div>
-                        <div><b>علاوة الأرباح:</b> +${g.bonus * 100}% أرباح إضافية</div>
-                        <div><b>زمن الرحلة:</b> ${g.deliveryTime} ثانية</div>
-                        <div><b>تكلفة فتح المحافظة:</b> ${g.cost.toLocaleString()} ج.م</div>
-                        
-                        ${!isUnlocked ? `
-                            <button class="action-btn buy-btn" 
-                                ${!canUnlock ? 'disabled' : ''} 
-                                onclick="unlockGovernorate('${g.id}')">
-                                ${canUnlock ? 'توسيع التوزيع وشراء التجميع 🚀' : `يتطلب مستوى ${g.minLvl}`}
-                            </button>
-                        ` : `<div style="color:var(--accent-green); font-weight:700; font-size:0.85rem; text-align:center; padding:8px; background:rgba(16,185,129,0.1); border-radius:8px;">✅ مركز التوزيع يعمل بكفاءة</div>`}
-                    </div>
-                `;
-            });
-            html += `</div>`;
-            container.innerHTML = html;
-        }
-
-        else if(tabName === 'sales') {
-            let repsHtml = '';
-            if(gameState.staff.reps.length === 0) {
-                repsHtml = `<div style="color:var(--text-muted)">لا يوجد مندوبون مبيعات معينون حالياً. قُم بتعيينهم من إدارة التوظيف!</div>`;
-            } else {
-                gameState.staff.reps.forEach((rep, idx) => {
-                    repsHtml += `
-                        <div class="info-card">
-                            <div class="card-title">👨‍💼 ${rep.name}</div>
-                            <div><b>الخبرة والمفهومية:</b> level ${rep.skill}</div>
-                            <div><b>إجمالي مبيعات المندوب:</b> ${rep.totalSales.toLocaleString()} ج.م</div>
-                            <div><b>عمولات معلقة غير مصروفة:</b> <b style="color:var(--accent-gold)">${rep.unpaidCommission.toLocaleString()} ج.م</b></div>
-                            <button class="action-btn buy-btn" onclick="payCommission(${idx})" ${rep.unpaidCommission <= 0 ? 'disabled' : ''}>صرف العمولة المستحقة 💸</button>
-                        </div>
-                    `;
-                });
-            }
-
-            container.innerHTML = `
-                <h2>📈 إدارة المبيعات وأداء المندوبين</h2>
-                <p style="color:var(--text-muted); margin-top:5px;">يقوم المندوبون بجلب الصفقات آلياً وتصريف مخزونك للحصول على عمولات 4%</p>
-                <div class="card-grid">${repsHtml}</div>
-            `;
-        }
-
-        else if(tabName === 'hr') {
-            container.innerHTML = `
-                <h2>👥 إدارة التوظيف والموارد البشرية</h2>
-                <p style="color:var(--text-muted); margin-top:5px;">عين السائقين والمندوبين لتوسيع عمليات التوصيل والبيع</p>
-                <div class="card-grid">
-                    <div class="info-card">
-                        <div class="card-title">👨‍✈️ سائق شاحنة نقل</div>
-                        <div><b>الوظيفة:</b> قيادة الشاحنات ونقل الصفقات للمحافظات</div>
-                        <div><b>الراتب الشهري:</b> 4,000 ج.م / شهر</div>
-                        <div><b>تكلفة التعيين الأولى:</b> 5,000 ج.م</div>
-                        <div><b>العدد الحالي:</b> ${gameState.staff.drivers} سائقين</div>
-                        <button class="action-btn buy-btn" onclick="hireDriver()">تعيين سائق جديد (5,000 ج.م)</button>
-                    </div>
-
-                    <div class="info-card">
-                        <div class="card-title">👨‍💼 مندوب مبيعات ميداني</div>
-                        <div><b>الوظيفة:</b> البحث والتنفيذ التلقائي للصفقات المتاحة</div>
-                        <div><b>الراتب الشهري:</b> 3,500 ج.م / شهر + 4% عمولة</div>
-                        <div><b>تكلفة التعيين الأولى:</b> 10,000 ج.م</div>
-                        <div><b>العدد الحالي:</b> ${gameState.staff.reps.length} مندوبين</div>
-                        <button class="action-btn buy-btn" onclick="hireRep()">تعيين مندوب جديد (10,000 ج.م)</button>
-                    </div>
-                </div>
-            `;
-        }
-
-        else if(tabName === 'marketing') {
-            const m = gameState.marketingLevel;
-            container.innerHTML = `
-                <h2>📢 إدارة التسويق والعلاقات العامة</h2>
-                <p style="color:var(--text-muted); margin-top:5px;">زيادة جودة وحجم وقيمة الصفقات المعروضة عليك بالأسواق</p>
-                <div class="card-grid">
-                    <div class="info-card">
-                        <div class="card-title">📣 حملة إعلانية بسيطة (Level 1)</div>
-                        <div><b>مضاعف الأرباح:</b> 1.15x على كل صفقة</div>
-                        <div><b>السعة الإضافية:</b> +1 صفقة متاحة بالسوق</div>
-                        <div><b>التكلفة:</b> 25,000 ج.م</div>
-                        <button class="action-btn buy-btn" ${m >= 1 ? 'disabled' : ''} onclick="upgradeMarketing(25000, 1.15)">
-                            ${m >= 1 ? 'مفعل حالياً ✅' : 'شراء الحملة الإعلانية'}
-                        </button>
-                    </div>
-
-                    <div class="info-card">
-                        <div class="card-title">🚀 حملة تسويق رقمي شاملة (Level 2)</div>
-                        <div><b>مضاعف الأرباح:</b> 1.35x على كل صفقة</div>
-                        <div><b>السعة الإضافية:</b> +2 صفقات متاحة بالسوق</div>
-                        <div><b>التكلفة:</b> 80,000 ج.م</div>
-                        <button class="action-btn buy-btn" ${m >= 2 ? 'disabled' : ''} onclick="upgradeMarketing(80000, 1.35)">
-                            ${m >= 2 ? (m > 2 ? 'تجاوزت هذا المستوى ✅' : 'مفعل حالياً ✅') : 'شراء الحملة الإعلانية'}
-                        </button>
-                    </div>
-
-                    <div class="info-card">
-                        <div class="card-title">📺 تعاقد مع وكالة إعلانات كبرى (Level 3)</div>
-                        <div><b>مضاعف الأرباح:</b> 1.60x على كل صفقة</div>
-                        <div><b>السعة الإضافية:</b> +3 صفقات متاحة بالسوق</div>
-                        <div><b>التكلفة:</b> 200,000 ج.م</div>
-                        <button class="action-btn buy-btn" ${m >= 3 ? 'disabled' : ''} onclick="upgradeMarketing(200000, 1.60)">
-                            ${m >= 3 ? 'مفعل حالياً ✅' : 'شراء الحملة الإعلانية'}
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        else if(tabName === 'finance') {
-            container.innerHTML = `
-                <h2>📑 الحسابات والتعاملات البنكية</h2>
-                <p style="color:var(--text-muted); margin-top:5px;">احصل على سيولة نقدية فورية لزيادة حجم عملياتك وتوسيع المخازن والأسطول</p>
-                <div class="card-grid">
-                    <div class="info-card">
-                        <div class="card-title">🏦 القروض البنكية</div>
-                        <div><b>قروض سارية قائمة:</b> <b style="color:var(--accent-red)">${gameState.loan.toLocaleString()} ج.م</b></div>
-                        <div><b>الفائدة المقررة:</b> 15% تُحسب عند الاقتراض</div>
-                        <div><b>مصاريف خدمة القرض:</b> 11,000 ج.م شهرياً</div>
-                        
-                        ${gameState.loan > 0 ? `
-                            <button class="action-btn danger-btn" onclick="payLoan()">سداد كامل القرض الان (${gameState.loan.toLocaleString()} ج.م)</button>
-                        ` : `
-                            <div style="display:flex; flex-direction:column; gap:8px; margin-top:10px;">
-                                <button class="action-btn buy-btn" onclick="takeLoan(100000)">سحب قرض 100,000 ج.م</button>
-                                <button class="action-btn buy-btn" onclick="takeLoan(300000)">سحب قرض 300,000 ج.م</button>
-                                <button class="action-btn buy-btn" onclick="takeLoan(500000)">سحب قرض 500,000 ج.م</button>
-                            </div>
-                        `}
-                    </div>
-                </div>
-            `;
-        }
-
-        else if(tabName === 'company') {
-            container.innerHTML = `
-                <h2>🏢 مقر الشركة (المقر الرئيسي بدمياط)</h2>
-                <p style="color:var(--text-muted); margin-top:5px;">تطوير المقر يعزز اسم شركتك في سوق التوزيع</p>
-                <div class="card-grid">
-                    <div class="info-card">
-                        <div class="card-title">
-                            مقر دمياط الرئيسي
-                            ${gameState.office.owned ? '<span class="status-badge badge-owned">مملوك</span>' : '<span class="status-badge badge-locked">غير مملوك</span>'}
-                        </div>
-                        <div><b>مستوى التجهيزات:</b> Level ${gameState.office.level}</div>
-                        <div><b>العنوان:</b> المنطقة الاستثمارية - دمياط</div>
-                        
-                        ${!gameState.office.owned ? `
-                            <button class="action-btn buy-btn" onclick="buyOffice(150000)">تأسيس المقر (150,000 ج.م)</button>
-                        ` : `
-                            <button class="action-btn upgrade-btn" onclick="upgradeOffice(100000)">تطوير المكاتب والتجهيزات (100,000 ج.م)</button>
-                        `}
-                    </div>
-                </div>
-            `;
-        }
-
-        else if(tabName === 'warehouse') {
-            const currentStock = (gameState.warehouse.stock.dairy || 0) + (gameState.warehouse.stock.cleaners || 0);
-            container.innerHTML = `
-                <h2>🏭 المخزن الرئيسي والبضائع</h2>
-                <p style="color:var(--text-muted); margin-top:5px;">إدارة المخزون وشراء البضائع بالسعر العادل وتخزينها لحين الشحن</p>
-                <div class="card-grid">
-                    <div class="info-card">
-                        <div class="card-title">
-                            المخزن المركزى
-                            ${gameState.warehouse.owned ? '<span class="status-badge badge-owned">مملوك</span>' : '<span class="status-badge badge-locked">غير مملوك</span>'}
-                        </div>
-                        <div><b>السعة التخزينية المتاحة:</b> ${currentStock} / ${gameState.warehouse.capacity} كرتونة</div>
-                        <div><b>مخزون الألبان:</b> ${gameState.warehouse.stock.dairy || 0} كرتونة</div>
-                        <div><b>مخزون المنظفات:</b> ${gameState.warehouse.stock.cleaners || 0} كرتونة</div>
-                        
-                        ${!gameState.warehouse.owned ? `
-                            <button class="action-btn buy-btn" onclick="buyWarehouse(100000, 500)">شراء أول مخزن سعة 500 (100,000 ج.م)</button>
-                        ` : `
-                            <button class="action-btn upgrade-btn" onclick="expandWarehouseCapacity()">توسعة المخزن (+300 سعة) بـ ${WAREHOUSE_EXPAND_COST.toLocaleString()} ج.م</button>
-                        `}
-                    </div>
-
-                    ${gameState.warehouse.owned ? `
-                        <div class="info-card">
-                            <div class="card-title">🥛 شراء بضاعة ألبان (جملة)</div>
-                            <div><b>سعر كرتونة الشراء:</b> 18 ج.م</div>
-                            <div><b>العقد الخاص بالمنتج:</b> ${gameState.signedContracts.dairy ? 'موقع ✅' : 'غير موقع ❌'}</div>
-                            ${gameState.signedContracts.dairy ? `
-                                <div style="display:flex; gap:5px; margin-top:10px;">
-                                    <button class="action-btn buy-btn" onclick="buyStock('dairy', 18, 50)">شراء 50 كرتونة</button>
-                                    <button class="action-btn buy-btn" onclick="buyStock('dairy', 18, 200)">شراء 200 كرتونة</button>
-                                </div>
-                            ` : `<div style="color:var(--accent-red); font-size:0.85rem; margin-top:10px;">يجب توقيع عقد الألبان أولاً من قسم العقود!</div>`}
-                        </div>
-
-                        <div class="info-card">
-                            <div class="card-title">🧼 شراء بضاعة منظفات (جملة)</div>
-                            <div><b>سعر كرتونة الشراء:</b> 40 ج.م</div>
-                            <div><b>العقد الخاص بالمنتج:</b> ${gameState.signedContracts.cleaners ? 'موقع ✅' : 'غير موقع ❌'}</div>
-                            ${gameState.signedContracts.cleaners ? `
-                                <div style="display:flex; gap:5px; margin-top:10px;">
-                                    <button class="action-btn buy-btn" onclick="buyStock('cleaners', 40, 50)">شراء 50 كرتونة</button>
-                                    <button class="action-btn buy-btn" onclick="buyStock('cleaners', 40, 200)">شراء 200 كرتونة</button>
-                                </div>
-                            ` : `<div style="color:var(--accent-red); font-size:0.85rem; margin-top:10px;">يجب توقيع عقد المنظفات أولاً من قسم العقود!</div>`}
-                        </div>
-                    ` : ''}
-                </div>
-            `;
-        }
-
-        else if(tabName === 'fleet') {
-            let deliveriesHtml = '';
-            if(gameState.activeDeliveries.length === 0) {
-                deliveriesHtml = `<div style="color:var(--text-muted); margin-top:10px;">لا يوجد أي شاحنات في رحلات توصيل حالياً.</div>`;
-            } else {
-                gameState.activeDeliveries.forEach(del => {
-                    const percent = Math.round(((del.totalTime - del.timeLeft) / del.totalTime) * 100);
-                    deliveriesHtml += `
-                        <div class="info-card" style="margin-top:10px;">
-                            <div class="card-title">🚚 رحلة إلى: ${del.govName} (${del.client})</div>
-                            <div><b>المبلغ المتوقع تحصيله:</b> ${del.totalRevenue.toLocaleString()} ج.م</div>
-                            <div><b>الوقت المتبقي للوصول:</b> ${del.timeLeft} ثانية</div>
-                            <div class="month-progress-bar" style="width:100%; height:12px; margin-top:5px;">
-                                <div class="month-progress-fill" style="width:${percent}%;"></div>
-                            </div>
-                        </div>
-                    `;
-                });
-            }
-
-            container.innerHTML = `
-                <h2>🚚 أسطول السيارات ورحلات النقل</h2>
-                <p style="color:var(--text-muted); margin-top:5px;">شراء وتجهيز الشاحنات لمباشرة توصيل الشحنات إلى كافة المحافظات</p>
-                <div class="card-grid">
-                    <div class="info-card">
-                        <div class="card-title">🚛 شاحنة نقل جامبو</div>
-                        <div><b>حالة الأسطول:</b> ${gameState.trucks} شاحنات مملوكة</div>
-                        <div><b>الشاحنات المتاحة الآن:</b> <b style="color:var(--accent-green)">${getAvailableTrucks()} شاحنة</b></div>
-                        <div><b>سعر الشاحنة الجديدة:</b> 80,000 ج.م</div>
-                        <div><b>تكلفة الصيانة الشهرية:</b> 2,500 ج.م / شاحنة</div>
-                        <button class="action-btn buy-btn" onclick="buyTruck()">شراء شاحنة جديدة (80,000 ج.م)</button>
-                    </div>
-                </div>
-
-                <h3 style="margin-top:20px; color:var(--accent-gold);">🛣️ رحلات التوصيل الحالية الجارية</h3>
-                <div>${deliveriesHtml}</div>
-            `;
-        }
-
-        else if(tabName === 'contracts') {
-            container.innerHTML = `
-                <h2>📄 عقود التوريد والشركات المصنعة</h2>
-                <p style="color:var(--text-muted); margin-top:5px;">وقع العقود الرسمية مع المصانع لفتح صلاحية توريد وتخزين المنتجات</p>
-                <div class="card-grid">
-                    <div class="info-card">
-                        <div class="card-title">🥛 عقد توريد مصانع الألبان</div>
-                        <div><b>تكلفة العقد والامتياز:</b> 30,000 ج.م</div>
-                        <div><b>منتجات العقد:</b> ألبان، جبن، زباديات</div>
-                        <div><b>حالة العقد:</b> ${gameState.signedContracts.dairy ? '<b style="color:var(--accent-green)">موقع رسمي ساري ✅</b>' : '<b style="color:var(--accent-red)">غير موقع ❌</b>'}</div>
-                        <button class="action-btn buy-btn" ${gameState.signedContracts.dairy ? 'disabled' : ''} onclick="signContract('dairy', 30000)">
-                            ${gameState.signedContracts.dairy ? 'تم التوقيع بنجاح' : 'توقيع العقد (30,000 ج.م)'}
-                        </button>
-                    </div>
-
-                    <div class="info-card">
-                        <div class="card-title">🧼 عقد توريد مصانع المنظفات</div>
-                        <div><b>تكلفة العقد والامتياز:</b> 60,000 ج.م</div>
-                        <div><b>منتجات العقد:</b> منظفات أرضيات، مساحيق، مطهرات</div>
-                        <div><b>حالة العقد:</b> ${gameState.signedContracts.cleaners ? '<b style="color:var(--accent-green)">موقع رسمي ساري ✅</b>' : '<b style="color:var(--accent-red)">غير موقع ❌</b>'}</div>
-                        <button class="action-btn buy-btn" ${gameState.signedContracts.cleaners ? 'disabled' : ''} onclick="signContract('cleaners', 60000)">
-                            ${gameState.signedContracts.cleaners ? 'تم التوقيع بنجاح' : 'توقيع العقد (60,000 ج.م)'}
-                        </button>
-                    </div>
-                </div>
-            `;
-        }
-
-        else if(tabName === 'deals') {
-            let dealsHtml = '';
-            if(!gameState.office.owned) {
-                dealsHtml = `<div style="color:var(--accent-red); font-weight:700;">يجب شراء وتأسيس المقر الرئيسي بدمياط من قائمة (مقر الشركة) لتلقي الصفقات!</div>`;
-            } else if(gameState.marketDeals.length === 0) {
-                dealsHtml = `<div style="color:var(--text-muted)">جاري بحث السوق... تظهر صفقات جديدة تلقائياً كل 15 ثانية!</div>`;
-            } else {
-                gameState.marketDeals.forEach(deal => {
-                    const hasStock = (gameState.warehouse.stock[deal.product] || 0) >= deal.qty;
-                    const hasTruck = getAvailableTrucks() > 0;
-                    const hasDriver = gameState.staff.drivers > gameState.activeDeliveries.length;
-                    const canExecute = hasStock && hasTruck && hasDriver;
-
-                    dealsHtml += `
-                        <div class="info-card">
-                            <div class="card-title">🤝 طلب من: ${deal.client}</div>
-                            <div><b>المحافظة المستلمة:</b> ${deal.govName}</div>
-                            <div><b>المنتج المطلـوب:</b> ${deal.productName}</div>
-                            <div><b>الكمية المطلوبة:</b> ${deal.qty} كرتونة</div>
-                            <div><b>إجمالي قيمة الصفقة:</b> <b style="color:var(--accent-green)">${deal.totalRevenue.toLocaleString()} ج.م</b></div>
-                            <div><b>مدة وصول الرحلة:</b> ${deal.deliveryTime} ثانية</div>
-                            
-                            <button class="action-btn buy-btn" ${!canExecute ? 'disabled' : ''} onclick="executeManualDeal(${deal.id})">
-                                ${!hasStock ? 'البضاعة غير متوفرة بالمخزن' : (!hasTruck ? 'لا توجد شاحنة متاحة' : (!hasDriver ? 'لا يوجد سائق متاح' : 'قبول وشحن الطلب فوراً 🚚'))}
-                            </button>
-                        </div>
-                    `;
-                });
-            }
-
-            container.innerHTML = `
-                <h2>🤝 السوق والصفقات الحية (كل 15 ثانية)</h2>
-                <p style="color:var(--text-muted); margin-top:5px;">تظهر الطلبات المباشرة من المحلات بالسوق. اختر الصفقة واشحنها لشاحناتك مباشرة</p>
-                <div class="card-grid">${dealsHtml}</div>
-            `;
-        }
-
-        else if(tabName === 'settings') {
-            container.innerHTML = `
-                <h2>🛡️ حماية البيانات وإدارة التقدم</h2>
-                <p style="color:var(--text-muted); margin-top:5px;">احفظ تقدمك يدويًا أو قم بتصدير كود للعب من جهاز آخر في أي وقت</p>
-                <div class="card-grid">
-                    <div class="info-card">
-                        <div class="card-title">💾 الحفظ والاسترجاع المحمدي</div>
-                        <div>يتم حفظ بياناتك تلقائياً في المتصفح كل ثانية. يمكنك أيضاً الأخذ بحفظ يدوي.</div>
-                        <button class="action-btn buy-btn" onclick="saveGameData(true)">حفظ التقدم الآن 💾</button>
-                    </div>
-
-                    <div class="info-card">
-                        <div class="card-title">🔑 كود التصدير والاستيراد</div>
-                        <div>انقل تقدمك لأي جهاز آخر عبر نسخ كود البيانات الخاص بك.</div>
-                        <div style="display:flex; gap:10px; margin-top:10px;">
-                            <button class="action-btn" style="flex:1;" onclick="openExportModal()">تصدير الكود 📤</button>
-                            <button class="action-btn" style="flex:1; background:var(--accent-purple);" onclick="openImportModal()">استيراد كود 📥</button>
-                        </div>
-                    </div>
-
-                    <div class="info-card" style="border-color:var(--accent-red);">
-                        <div class="card-title" style="color:var(--accent-red);">⚠️ البدء من جديد</div>
-                        <div>مسح كافة بيانات الشركة بالكامل والبدء من جديد كتاجر مبتدئ.</div>
-                        <button class="action-btn danger-btn" onclick="openResetConfirmModal()">إعادة ضبط اللعبة 🗑️</button>
-                    </div>
-                </div>
-            `;
-        }
-    }
-</script>
+<script src="game.js"></script>
 </body>
 </html>
