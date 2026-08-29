@@ -91,6 +91,7 @@
         .menu-btn:hover { border-color: var(--accent-blue); color: var(--accent-blue); }
         .menu-btn.primary { background: var(--accent-gold); color: #000; border-color: var(--accent-gold); }
         .menu-btn.danger { background: var(--accent-red); color: #fff; border-color: var(--accent-red); }
+        .menu-btn:disabled { opacity: 0.45; cursor: not-allowed; background: var(--panel-bg) !important; color: var(--text-muted) !important; border-color: var(--panel-border) !important; }
 
         .modal-overlay {
             position: absolute; inset: 0; background: rgba(2, 6, 23, 0.88); backdrop-filter: blur(6px);
@@ -239,6 +240,127 @@
         }
 
         @keyframes slideIn { from { transform: translateY(15px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+
+        /* ============================================
+           🎨 إضافات الرسومات: أرقام طايرة، شاحنة متحركة،
+           خريطة SVG، رسم بياني، إشعار إنجازات
+           ============================================ */
+
+        /* أرقام "+X ج.م" الطايرة عند أي تغيير في الرصيد */
+        .floating-number {
+            position: absolute;
+            font-weight: 900;
+            font-size: 0.9rem;
+            color: var(--accent-green);
+            pointer-events: none;
+            z-index: 500;
+            text-shadow: 0 2px 6px rgba(0,0,0,0.7);
+            animation: floatUpFade 1.5s ease-out forwards;
+            white-space: nowrap;
+        }
+        .floating-number.negative { color: var(--accent-red); }
+        @keyframes floatUpFade {
+            0% { transform: translateY(0) scale(0.9); opacity: 0; }
+            15% { transform: translateY(-6px) scale(1.05); opacity: 1; }
+            100% { transform: translateY(-48px) scale(1); opacity: 0; }
+        }
+
+        /* مسار الشحن المتحرك مع أيقونة الشاحنة */
+        .delivery-track {
+            position: relative;
+            width: 100%;
+            height: 22px;
+            background: #0f172a;
+            border-radius: 11px;
+            border: 1px solid var(--panel-border);
+            margin-top: 8px;
+            overflow: visible;
+        }
+        .delivery-track-fill {
+            position: absolute;
+            top: 0; right: 0;
+            height: 100%;
+            background: linear-gradient(90deg, rgba(245,158,11,0.15), rgba(245,158,11,0.45));
+            border-radius: 11px;
+            transition: width 1s linear;
+        }
+        .delivery-truck-icon {
+            position: absolute;
+            top: 50%;
+            transform: translate(50%, -50%);
+            font-size: 1.05rem;
+            transition: right 1s linear;
+            filter: drop-shadow(0 2px 3px rgba(0,0,0,0.7));
+        }
+
+        /* خريطة المحافظات SVG */
+        .gov-map-wrap {
+            background: rgba(15, 23, 42, 0.5);
+            border: 1.5px solid var(--panel-border);
+            border-radius: 12px;
+            padding: 10px;
+            margin-top: 10px;
+        }
+        .gov-map-wrap svg g:hover circle:first-child { opacity: 0.8; }
+
+        /* الرسم البياني للأرباح */
+        .revenue-chart-wrap svg { overflow: visible; }
+
+        /* توهج إشعار الإنجاز */
+        .toast-msg.achievement {
+            border-color: var(--accent-gold);
+            box-shadow: 0 0 18px rgba(245, 158, 11, 0.65);
+            animation: slideIn 0.2s ease forwards, achievementGlow 1.4s ease-in-out infinite;
+        }
+        @keyframes achievementGlow {
+            0%, 100% { box-shadow: 0 0 10px rgba(245, 158, 11, 0.4); }
+            50% { box-shadow: 0 0 22px rgba(245, 158, 11, 0.85); }
+        }
+
+        /* ============================================
+           🛒 إضافات كسر رتابة البيع/الشراء: موردين، تجميع
+           رحلات، عقود عملاء، مفاوضة، فرز صفقات
+           ============================================ */
+        .info-card input[type="checkbox"] { accent-color: var(--accent-blue); }
+        /* ============================================
+           🏠 شاشة البداية ولوحة دليل اللعبة الجانبية
+           ============================================ */
+        #start-screen .start-inner {
+            flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+            padding: 24px 16px; gap: 12px; overflow-y: auto; text-align: center;
+        }
+        #start-screen .start-actions { width: 100%; max-width: 340px; display: flex; flex-direction: column; gap: 10px; margin-top: 10px; }
+
+        .guide-overlay {
+            position: absolute; inset: 0; background: rgba(2, 6, 23, 0.75); backdrop-filter: blur(3px);
+            z-index: 250;
+        }
+        .guide-overlay.hidden { display: none !important; }
+        .guide-panel {
+            position: absolute; top: 0; right: 0; bottom: 0;
+            width: min(440px, 94%);
+            background: var(--panel-bg); border-left: 2px solid var(--accent-gold);
+            display: flex; flex-direction: column;
+            box-shadow: -10px 0 30px rgba(0,0,0,0.6);
+            animation: guideSlideIn 0.25s ease;
+        }
+        @keyframes guideSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+        .guide-panel-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 14px 16px; border-bottom: 2px solid var(--panel-border); flex-shrink: 0;
+        }
+        .guide-panel-body { flex: 1; overflow-y: auto; padding: 14px 16px; display: flex; flex-direction: column; gap: 12px; }
+        .guide-section { background: rgba(15,23,42,0.5); border: 1px solid var(--panel-border); border-radius: 10px; padding: 12px 14px; }
+        .guide-section h3 { color: var(--accent-gold); font-size: 0.92rem; margin-bottom: 6px; }
+        .guide-section p { font-size: 0.78rem; color: var(--text-muted); line-height: 1.7; margin-bottom: 4px; }
+        .guide-section ul { padding-right: 18px; margin-top: 4px; display: flex; flex-direction: column; gap: 3px; }
+        .guide-section li { font-size: 0.78rem; color: var(--text-muted); line-height: 1.6; }
+        .guide-section li b { color: var(--text-main); }
+        .help-btn {
+            background: rgba(59,130,246,0.15); border: 1.5px solid var(--accent-blue); color: var(--accent-blue);
+            width: 30px; height: 30px; border-radius: 50%; font-weight: 800; cursor: pointer; flex-shrink: 0;
+            display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
+        }
     </style>
 </head>
 <body>
@@ -252,6 +374,26 @@
 
 <div id="game-container">
 
+    <!-- 🏠 شاشة البداية الرئيسية -->
+    <div class="screen" id="start-screen">
+        <div class="start-inner">
+            <div style="font-size:3rem;">🏢</div>
+            <h1 style="color:var(--accent-gold); font-size:1.5rem;">محاكي التاجر الواقعي</h1>
+            <p style="color:var(--text-muted); font-size:0.82rem; max-width:380px;">ابنِ إمبراطوريتك التجارية من دمياط... وحتى الأسواق العالمية 🌍</p>
+
+            <div class="start-actions">
+                <button class="menu-btn primary" id="btn-continue-game" onclick="continueGame()" disabled>▶️ متابعة اللعبة المحفوظة</button>
+                <div id="continue-game-info" style="display:none; font-size:0.72rem; color:var(--text-muted); margin-top:-4px;"></div>
+
+                <button class="menu-btn" id="btn-new-game" onclick="startNewGame()">🆕 بدء لعبة جديدة</button>
+                <button class="menu-btn" onclick="openStartSettingsModal()">⚙️ الإعدادات وحماية التقدم</button>
+                <button class="menu-btn" onclick="openGuidePanel()">📖 دليل اللعبة الكامل</button>
+            </div>
+
+            <div style="font-size:0.68rem; color:var(--text-muted); margin-top:16px;">جميع بياناتك محفوظة محلياً على جهازك فقط</div>
+        </div>
+    </div>
+
     <!-- نافذة طلب اسم التاجر -->
     <div class="modal-overlay hidden" id="name-modal">
         <div class="modal-card">
@@ -259,6 +401,32 @@
             <p style="font-size:0.85rem; color:var(--text-muted);">اكتب اسمك لتصبح التاجر الرسمي للشركة ومقرها الرئيسي دمياط</p>
             <input type="text" id="player-name-input" class="modal-input" placeholder="اكتب اسمك هنا..." maxlength="20">
             <button class="menu-btn primary" onclick="confirmPlayerName()">دخول السوق والبدء 🚀</button>
+        </div>
+    </div>
+
+    <!-- تأكيد بدء لعبة جديدة فوق حفظة موجودة -->
+    <div class="modal-overlay hidden" id="new-game-confirm-modal">
+        <div class="modal-card danger-modal">
+            <h2 style="color:var(--accent-red);">⚠️ يوجد تقدم محفوظ بالفعل</h2>
+            <p style="font-size:0.85rem; color:var(--text-muted);">بدء لعبة جديدة سيمسح تقدمك الحالي نهائياً. إن أردت الاحتفاظ به، صدّر كود الحماية أولاً من الإعدادات قبل المتابعة.</p>
+            <div class="modal-actions">
+                <button class="menu-btn danger" onclick="confirmStartNewGame()">نعم، امسح وابدأ من جديد</button>
+                <button class="menu-btn" onclick="closeModal('new-game-confirm-modal')">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- إعدادات شاشة البداية (حفظ / تصدير / استيراد / إعادة ضبط) -->
+    <div class="modal-overlay hidden" id="start-settings-modal">
+        <div class="modal-card">
+            <h2 style="color:var(--accent-gold);">⚙️ الإعدادات وحماية التقدم</h2>
+            <p style="font-size:0.8rem; color:var(--text-muted);">إدارة الحفظ، وكود التصدير/الاستيراد لحماية تقدمك واسترجاعه على أي جهاز</p>
+            <div class="modal-actions" style="flex-direction:column;">
+                <button class="menu-btn primary" id="start-export-btn" onclick="openExportModal()">🔑 تصدير كود حماية التقدم</button>
+                <button class="menu-btn" onclick="openImportModal()">📥 استرجاع التقدم بكود</button>
+                <button class="menu-btn danger" id="start-reset-btn" onclick="openResetConfirmModal()">🗑️ إعادة ضبط اللعبة بالكامل</button>
+                <button class="menu-btn" onclick="closeModal('start-settings-modal')">إغلاق</button>
+            </div>
         </div>
     </div>
 
@@ -315,7 +483,10 @@
     <!-- الداشبورد الرئيسية -->
     <div class="screen hidden" id="dashboard-screen">
         <div class="top-bar">
-            <div class="company-title">🏢 شركة <span id="display-player-name">التاجر</span> (دمياط)</div>
+            <div style="display:flex; align-items:center; gap:8px;">
+                <div class="company-title">🏢 شركة <span id="display-player-name">التاجر</span> (دمياط)</div>
+                <button class="help-btn" onclick="openGuidePanel()" title="دليل اللعبة">❓</button>
+            </div>
             <div class="stats-group">
                 <div class="stat-pill">📅 شهر: <b id="game-month" style="color:var(--accent-blue)">1</b> <div class="month-progress-bar"><div class="month-progress-fill" id="month-progress"></div></div></div>
                 <div class="stat-pill">⭐ لفل: <b id="player-lvl" style="color:var(--accent-gold)">1</b></div>
@@ -338,6 +509,7 @@
 
                 <div style="font-size:0.7rem; color:var(--text-muted); font-weight:800; margin-top:6px;">أصول الشركة</div>
                 <button class="nav-btn" id="btn-company" onclick="showTab('company', this)">🏢 المقر (دمياط)</button>
+                <button class="nav-btn" id="btn-tech" onclick="showTab('tech', this)">🧠 التقنية الذكية <span>🆕</span></button>
                 <button class="nav-btn" id="btn-warehouse" onclick="showTab('warehouse', this)">🏭 المخزن والبضائع</button>
                 <button class="nav-btn" id="btn-fleet" onclick="showTab('fleet', this)">🚚 أسطول السيارات</button>
                 <button class="nav-btn" id="btn-contracts" onclick="showTab('contracts', this)">📄 عقود التوريد</button>
@@ -349,6 +521,99 @@
             </div>
 
             <div class="main-content" id="tab-content"></div>
+        </div>
+    </div>
+
+    <!-- 📖 لوحة دليل اللعبة الجانبية -->
+    <div class="guide-overlay hidden" id="guide-overlay" onclick="closeGuidePanelBackdrop(event)">
+        <div class="guide-panel" onclick="event.stopPropagation()">
+            <div class="guide-panel-header">
+                <h2 style="color:var(--accent-gold); margin:0; font-size:1.1rem;">📖 دليل اللعبة الكامل</h2>
+                <button class="menu-btn" style="width:auto; padding:6px 14px;" onclick="closeGuidePanel()">✖ إغلاق</button>
+            </div>
+            <div class="guide-panel-body">
+
+                <div class="guide-section">
+                    <h3>🎯 فكرة اللعبة</h3>
+                    <p>تبدأ تاجر توزيع مقره دمياط برأس مال 500,000 ج.م. مهمتك تبني إمبراطورية توزيع بضائع بالجملة: توقع عقود توريد، تخزن بضاعة، تشحنها للمحافظات وتحصل أرباحها، وتوسع تدريجياً لحد التصدير الدولي.</p>
+                </div>
+
+                <div class="guide-section">
+                    <h3>🏢 المقر الرئيسي والتقنية الذكية</h3>
+                    <ul>
+                        <li>لازم تؤسس المقر الرئيسي بدمياط الأول عشان تستقبل صفقات من السوق.</li>
+                        <li>قسم <b>التقنية الذكية</b>: تطبيق موبايل (يزود صفقات السوق)، نظام GPS (يقلل زمن الشحن)، وشركة أمن (تحمي شحناتك).</li>
+                    </ul>
+                </div>
+
+                <div class="guide-section">
+                    <h3>📄 عقود التوريد</h3>
+                    <p>6 فئات منتجات (ألبان، منظفات، مجمدات، مخبوزات، مواد غذائية، تجميل)، كل فئة محتاجة عقد توريد موقّع قبل ما تقدر تشتريها أو تبيعها، وبعضها محتاج مستوى معين (Level) لفتحه.</p>
+                </div>
+
+                <div class="guide-section">
+                    <h3>🏭 المخزن والموردين</h3>
+                    <ul>
+                        <li>لكل منتج 3 موردين: <b>اقتصادي</b> (رخيص وبطيء ومخاطرة أعلى)، <b>قياسي</b> (متوازن)، <b>فوري</b> (غالي بس لحظي).</li>
+                        <li><b>إعادة الطلب التلقائي</b>: فعّلها لأي منتج فيشتريلك تلقائي لو المخزون قل عن 100 كرتونة.</li>
+                        <li>المخزون الراكد بيتلف جزء منه شهرياً (خصوصاً الألبان والمجمدات والمخبوزات) - ركّب <b>غرفة تبريد</b> لتقليل الخسارة للنصف.</li>
+                        <li><b>نظام التحميل الآلي</b> بيقلل زمن الشحن.</li>
+                    </ul>
+                </div>
+
+                <div class="guide-section">
+                    <h3>🚚 الأسطول والتوظيف</h3>
+                    <p>شاحنات عادية (لكل المنتجات ما عدا المجمدات) وشاحنات مبردة (للمجمدات فقط). وظّف سائقين لتشغيل الشحنات ومندوبي مبيعات ينفذوا صفقات تلقائياً ويكسبوا خبرة (XP) ويترقوا بمرور الوقت.</p>
+                </div>
+
+                <div class="guide-section">
+                    <h3>🤝 السوق والصفقات الحية</h3>
+                    <ul>
+                        <li>صفقات عادية تظهر تلقائياً كل ثوانٍ من السوق.</li>
+                        <li><b>⚡ صفقات عاجلة</b>: قيمة أعلى بس مدة محدودة قبل ما تنتهي.</li>
+                        <li><b>⭐ عملاء دائمون (VIP)</b>: كل ما تعاملت معاهم أكتر، صفقاتهم تبقى أقيم.</li>
+                        <li><b>📍 طلب إقليمي متغير</b>: كل محافظة ليها منتج "ساخن" بيتغير شهرياً بعلاوة ربح 30%.</li>
+                        <li><b>🌍 تصدير دولي</b>: صفقات نادرة وضخمة القيمة (2.3x) تظهر بعد ما تفتح كل المحافظات.</li>
+                        <li><b>🤝 مفاوضة</b>: الصفقات فوق 60,000 ج.م تقدر تفاوض عليها (محاولة واحدة، مخاطرة حقيقية).</li>
+                        <li><b>📦 شحن مجمّع</b>: اختار صفقتين أو أكتر لنفس المحافظة ونفس نوع الشاحنة واشحنهم برحلة واحدة بمكافأة إضافية.</li>
+                    </ul>
+                </div>
+
+                <div class="guide-section">
+                    <h3>📈 المبيعات وعقود العملاء</h3>
+                    <p><b>عقود طويلة المدى</b>: دخل شهري ثابت ومضمون مقابل التزام بكمية وسعر محددين لعدة أشهر (حد أقصى عقدين نشطين). لو مخزونك مش كافي أي شهر، هتدفع غرامة إخلال.</p>
+                </div>
+
+                <div class="guide-section">
+                    <h3>📢 التسويق والبنك</h3>
+                    <ul>
+                        <li><b>التسويق</b>: يزود مضاعف الأرباح وعدد الصفقات المعروضة.</li>
+                        <li><b>البنك</b>: قروض فورية بفائدة، استثمارات (ألبان/لوجستيات) تديك دخل شهري ثابت، تأمين يحميك من الأزمات، وإقرار ضريبي كل 6 أشهر.</li>
+                    </ul>
+                </div>
+
+                <div class="guide-section">
+                    <h3>⚔️ المنافس التجاري والمستوى</h3>
+                    <p>شركة منافسة بتاخد حصة سوق لو ماوسعتش بسرعة - تقدر تستحوذ عليها بمبلغ كبير لاحقاً. مستواك (Level) بيرتفع تلقائياً حسب إجمالي مبيعاتك، وبيفتحلك محافظات وعقود جديدة.</p>
+                </div>
+
+                <div class="guide-section">
+                    <h3>🏆 المهام والمواسم والإنجازات</h3>
+                    <p>مهام دورية، مواسم بتزود الطلب على منتجات معينة مؤقتاً، وإنجازات دائمة (زي أول مليون، أسطول ضخم، رواد التكنولوجيا، التاجر العالمي) بتديك مكافآت فورية.</p>
+                </div>
+
+                <div class="guide-section">
+                    <h3>🛡️ حماية التقدم والحفظ</h3>
+                    <ul>
+                        <li>اللعبة بتتحفظ تلقائياً كل ثانية على جهازك (localStorage) - مفيش سيرفر أو إنترنت مطلوب.</li>
+                        <li><b>كود التصدير</b>: انسخه واحتفظ بيه عشان تسترجع تقدمك على أي جهاز تاني.</li>
+                        <li><b>كود الاستيراد</b>: الصق كود سابق لاسترجاع تقدمك.</li>
+                        <li>كل حفظة محمية بتوقيع رقمي (checksum) - أي تلاعب يدوي في بيانات الحفظ هيتم اكتشافه وإعادة ضبط اللعبة تلقائياً لحمايتك من الغش.</li>
+                        <li><b>إعادة الضبط</b> بتمسح كل تقدمك نهائياً - صدّر كود قبلها لو عايز تحتفظ بنسخة.</li>
+                    </ul>
+                </div>
+
+            </div>
         </div>
     </div>
 

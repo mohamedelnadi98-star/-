@@ -2,7 +2,7 @@
     const GAME_VERSION = "3.0.0";
     const SAVE_KEY_PRIMARY = 'trader_real_save_v5';
     const SAVE_KEY_BACKUP = 'trader_real_save_backup_v5';
-    const MONTH_DURATION_SECONDS = 3600; 
+    const MONTH_DURATION_SECONDS = 600; // الشهر = 10 دقائق
     const WAREHOUSE_EXPAND_COST = 50000; 
     const SECRET_SALT = "DMT_REAL_TRADER_SECURE_SALT_PRO_V3";
 
@@ -76,6 +76,21 @@
         cosmetics: 85
     };
 
+    const productNames = {
+        dairy: 'ألبان', cleaners: 'منظفات', frozen: 'مجمدات',
+        bakery: 'مخبوزات', dryfood: 'مواد غذائية', cosmetics: 'مستحضرات تجميل'
+    };
+
+    // 🚚 الموردين المتعددين لكل منتج: اقتصادي (رخيص وبطيء) / قياسي / فوري (غالي وسريع)
+    const supplierProfiles = [
+        { id: 'budget', name: 'مورد اقتصادي', icon: '🐢', priceMult: 0.82, arrivalDelay: 45, riskPercent: 0.15 },
+        { id: 'standard', name: 'مورد قياسي', icon: '🚚', priceMult: 1.0, arrivalDelay: 15, riskPercent: 0.05 },
+        { id: 'express', name: 'مورد فوري (إكسبرس)', icon: '⚡', priceMult: 1.3, arrivalDelay: 0, riskPercent: 0.0 }
+    ];
+
+    // نسب تلف المخزون الراكد شهرياً حسب طبيعة المنتج (منتجات سريعة التلف مقابل دائمة)
+    const spoilRates = { dairy: 0.08, frozen: 0.10, bakery: 0.09, dryfood: 0.03, cleaners: 0, cosmetics: 0.01 };
+
     const governoratesData = [
         { id: 'domyat', name: 'دمياط (المقر الرئيسي)', minLvl: 1, cost: 0, unlocked: true, bonus: 0, deliveryTime: 10 },
         { id: 'dakahlia', name: 'الدقهلية (المنصورة)', minLvl: 2, cost: 120000, unlocked: false, bonus: 0.20, deliveryTime: 15 },
@@ -121,7 +136,8 @@
             firstMillion: false,
             fleetOwner: false,
             allGovs: false,
-            techMaster: false
+            techMaster: false,
+            globalTrader: false
         },
         aiCompetitor: {
             name: "شركة النصر للتوزيع",
@@ -140,11 +156,25 @@
             logisticsShares: 0 // أسهم شركة اللوجستيات (سعر السهم 100,000)
         },
         insuranceActive: false,
-        taxDue: 0
+        taxDue: 0,
+        revenueHistory: [], // سجل إجمالي المبيعات آخر 12 شهر لرسم بياني النمو
+
+        // ============ الميزات الجديدة (كسر الرتابة) ============
+        incomingShipments: [], // شحنات واردة من الموردين لسه في الطريق للمخزن
+        autoReorder: {
+            dairy: { enabled: false }, cleaners: { enabled: false }, frozen: { enabled: false },
+            bakery: { enabled: false }, dryfood: { enabled: false }, cosmetics: { enabled: false }
+        },
+        dealsSortMode: 'default', // default | revenue | expiry
+        regionalDemand: {}, // المنتج المطلوب بقوة في كل محافظة هذا الشهر
+        clientContracts: [], // عقود عملاء طويلة المدى نشطة
+        contractOffers: [],  // عروض عقود جديدة متاحة للتوقيع
+        exportDealsCompleted: 0 // عدد صفقات التصدير الدولي المكتملة
     };
 
     let gameState = JSON.parse(JSON.stringify(defaultGameState));
     const clientNames = ["سوبرماركت التقوى", "هايبر الأمل", "أسواق مكة", "ماركت الأمانة", "سلسلة الجملة", "ميني ماركت البركة", "أسواق المدينة", "هايبر الفيروز", "ماركت النور", "أسواق الهدى"];
+    const exportClientNames = ["مستورد من الإمارات 🇦🇪", "شركة استيراد سعودية 🇸🇦", "تاجر جملة ليبي 🇱🇾", "موزع أردني 🇯🇴", "شركة تصدير قطرية 🇶🇦"];
 
     // خوارزمية التشفير والحماية ضد التلاعب
     async function generateChecksum(dataObj) {
@@ -168,6 +198,100 @@
         } catch(e) { console.error(e); }
     }
 
+    // يوحّد بيانات أي حفظة قديمة (تصدير/استيراد كود أو localStorage) مع أي حقول جديدة أُضيفت لاحقاً
+    function normalizeGameState() {
+        if (!gameState.marketPrices) gameState.marketPrices = { ...baseProductPrices };
+        if (!gameState.vipClients) gameState.vipClients = {};
+        if (!gameState.achievements) gameState.achievements = { firstMillion: false, fleetOwner: false, allGovs: false, techMaster: false, globalTrader: false };
+        if (!gameState.techTree) gameState.techTree = { app: false, gps: false, security: false };
+        if (!gameState.investments) gameState.investments = { dairyShares: 0, logisticsShares: 0 };
+        if (!Array.isArray(gameState.revenueHistory)) gameState.revenueHistory = [];
+        if (!Array.isArray(gameState.incomingShipments)) gameState.incomingShipments = [];
+        if (!gameState.autoReorder) gameState.autoReorder = JSON.parse(JSON.stringify(defaultGameState.autoReorder));
+        if (!gameState.dealsSortMode) gameState.dealsSortMode = 'default';
+        if (!gameState.regionalDemand) gameState.regionalDemand = {};
+        if (!Array.isArray(gameState.clientContracts)) gameState.clientContracts = [];
+        if (!Array.isArray(gameState.contractOffers)) gameState.contractOffers = [];
+        if (gameState.exportDealsCompleted === undefined) gameState.exportDealsCompleted = 0;
+        if (gameState.achievements && gameState.achievements.globalTrader === undefined) gameState.achievements.globalTrader = false;
+    }
+
+    // ==========================================
+    // 🏠 شاشة البداية: متابعة / لعبة جديدة / إعدادات / دليل
+    // ==========================================
+
+    // يحدّث حالة أزرار شاشة البداية حسب وجود حفظة صالحة من عدمه (بدون تحميلها فعلياً أو التحقق من التوقيع)
+    function refreshStartScreenState() {
+        const dataStr = localStorage.getItem(SAVE_KEY_PRIMARY) || localStorage.getItem(SAVE_KEY_BACKUP);
+        const continueBtn = document.getElementById('btn-continue-game');
+        const continueInfo = document.getElementById('continue-game-info');
+        const exportBtn = document.getElementById('start-export-btn');
+        const resetBtn = document.getElementById('start-reset-btn');
+        let hasSave = false;
+
+        if (dataStr) {
+            try {
+                const parsed = JSON.parse(dataStr);
+                if (parsed && parsed.playerName) {
+                    hasSave = true;
+                    if (continueInfo) {
+                        continueInfo.style.display = 'block';
+                        continueInfo.innerText = `${parsed.playerName} • Level ${parsed.level || 1} • ${(parsed.money || 0).toLocaleString()} ج.م • شهر ${parsed.month || 1}`;
+                    }
+                }
+            } catch (e) { hasSave = false; }
+        }
+
+        if (continueBtn) continueBtn.disabled = !hasSave;
+        if (!hasSave && continueInfo) continueInfo.style.display = 'none';
+        if (exportBtn) exportBtn.disabled = !hasSave;
+        if (resetBtn) resetBtn.disabled = !hasSave;
+    }
+
+    // ▶️ متابعة اللعبة المحفوظة (يتحقق من التوقيع الرقمي فعلياً هنا)
+    window.continueGame = async function() {
+        const ok = await loadGameData(false);
+        if (ok) {
+            document.getElementById('start-screen').classList.add('hidden');
+        } else {
+            showToast("لا توجد حفظة صالحة لمتابعتها، جرب بدء لعبة جديدة أو استرجاع كود حماية.", "error");
+            refreshStartScreenState();
+        }
+    };
+
+    // 🆕 بدء لعبة جديدة (يحذّر أولاً لو فيه تقدم محفوظ بالفعل)
+    window.startNewGame = function() {
+        const dataStr = localStorage.getItem(SAVE_KEY_PRIMARY) || localStorage.getItem(SAVE_KEY_BACKUP);
+        if (dataStr) {
+            document.getElementById('new-game-confirm-modal').classList.remove('hidden');
+        } else {
+            document.getElementById('start-screen').classList.add('hidden');
+            document.getElementById('name-modal').classList.remove('hidden');
+            document.getElementById('player-name-input').focus();
+        }
+    };
+
+    window.confirmStartNewGame = function() {
+        localStorage.removeItem(SAVE_KEY_PRIMARY);
+        localStorage.removeItem(SAVE_KEY_BACKUP);
+        gameState = JSON.parse(JSON.stringify(defaultGameState));
+        closeModal('new-game-confirm-modal');
+        document.getElementById('start-screen').classList.add('hidden');
+        document.getElementById('name-modal').classList.remove('hidden');
+        document.getElementById('player-name-input').value = "";
+        document.getElementById('player-name-input').focus();
+    };
+
+    window.openStartSettingsModal = function() {
+        refreshStartScreenState();
+        document.getElementById('start-settings-modal').classList.remove('hidden');
+    };
+
+    // 📖 لوحة دليل اللعبة الجانبية
+    window.openGuidePanel = function() { document.getElementById('guide-overlay').classList.remove('hidden'); };
+    window.closeGuidePanel = function() { document.getElementById('guide-overlay').classList.add('hidden'); };
+    window.closeGuidePanelBackdrop = function(evt) { if (evt.target.id === 'guide-overlay') closeGuidePanel(); };
+
     async function loadGameData(isManual = false) {
         try {
             let dataStr = localStorage.getItem(SAVE_KEY_PRIMARY) || localStorage.getItem(SAVE_KEY_BACKUP);
@@ -183,11 +307,7 @@
                 }
 
                 gameState = Object.assign({}, JSON.parse(JSON.stringify(defaultGameState)), loaded);
-                if (!gameState.marketPrices) gameState.marketPrices = { ...baseProductPrices };
-                if (!gameState.vipClients) gameState.vipClients = {};
-                if (!gameState.achievements) gameState.achievements = { firstMillion: false, fleetOwner: false, allGovs: false, techMaster: false };
-                if (!gameState.techTree) gameState.techTree = { app: false, gps: false, security: false };
-                if (!gameState.investments) gameState.investments = { dairyShares: 0, logisticsShares: 0 };
+                normalizeGameState();
                 
                 document.getElementById('dashboard-screen').classList.remove('hidden');
                 updateUI();
@@ -200,15 +320,14 @@
     }
 
     window.addEventListener('DOMContentLoaded', () => {
-        loadGameData(false).then(hasSaved => {
-            if(!hasSaved) {
-                document.getElementById('name-modal').classList.remove('hidden');
-                document.getElementById('player-name-input').focus();
-            }
-        });
+        refreshStartScreenState();
     });
 
-    window.addEventListener('beforeunload', () => { saveGameData(false); });
+    window.addEventListener('beforeunload', () => {
+        // نحفظ فقط لو فيه جلسة لعب فعلية شغالة (الداشبورد ظاهر)، لتفادي الكتابة فوق حفظة حقيقية ببيانات فارغة
+        const dashboardVisible = document.getElementById('dashboard-screen') && !document.getElementById('dashboard-screen').classList.contains('hidden');
+        if (dashboardVisible) saveGameData(false);
+    });
 
     // المحرك الأساسي والدورية الزمنية
     let autoSaveTimer = 0;
@@ -223,6 +342,10 @@
                 processMonthlyExpenses();
                 updateMarketFluctuations();
                 triggerRandomEvents(); // تشغيل الأزمات والأحداث الطارئة
+                applyInventorySpoilage(); // تلف المخزون الراكد
+                updateRegionalDemand(); // الطلب الإقليمي المتغير بكل محافظة
+                processClientContracts(); // تنفيذ عقود العملاء طويلة المدى الشهرية
+                refreshContractOffers(); // تجديد عروض العقود الجديدة المتاحة
             }
 
             processDeliveries();
@@ -230,6 +353,8 @@
             checkLevelProgress();
             updateRushDealsTimer();
             checkAchievements();
+            processIncomingShipments(); // وصول شحنات الموردين المتأخرة تدريجياً
+            processAutoReorder(); // إعادة الطلب التلقائي عند انخفاض المخزون
 
             autoSaveTimer++;
             if (autoSaveTimer >= 30) {
@@ -315,6 +440,7 @@
         const passiveIncome = (gameState.investments.dairyShares * 3500) + (gameState.investments.logisticsShares * 8000);
         if (passiveIncome > 0) {
             gameState.money += passiveIncome;
+            spawnFloatingNumber(passiveIncome);
             showToast(`📈 حصلت على أرباح استثمارات شهرية قدرها ${passiveIncome.toLocaleString()} ج.م!`, "success");
         }
 
@@ -322,9 +448,198 @@
         if (gameState.month % 6 === 0) {
             const tax = Math.round(gameState.totalRevenueGenerated * 0.05);
             gameState.money = Math.max(0, gameState.money - tax);
+            spawnFloatingNumber(-tax);
             showToast(`🏛️ تم خصم الإقرار الضريبي الدوري بـ ${tax.toLocaleString()} ج.م من الخزينة.`, "info");
         }
     }
+
+    // 📉 تلف المخزون الراكد شهرياً حسب طبيعة كل منتج (يقل التأثير كثيراً مع غرفة التبريد)
+    function applyInventorySpoilage() {
+        let totalLost = 0;
+        Object.keys(spoilRates).forEach(pid => {
+            let rate = spoilRates[pid];
+            if (rate <= 0) return;
+            if (gameState.warehouse.hasCoolingSystem) rate = rate / 2;
+
+            const current = gameState.warehouse.stock[pid] || 0;
+            if (current <= 0) return;
+
+            const lost = Math.round(current * rate);
+            if (lost > 0) {
+                gameState.warehouse.stock[pid] -= lost;
+                totalLost += lost;
+            }
+        });
+
+        if (totalLost > 0) {
+            showToast(`📉 تلف ${totalLost} كرتونة من المخزون الراكد بسبب انتهاء الصلاحية الطبيعية. صرّف مخزونك بسرعة أكبر أو ركّب غرفة تبريد لتقليل الخسائر!`, "error");
+            updateUI();
+        }
+    }
+
+    // 📍 الطلب الإقليمي المتغير: يختار منتجاً "ساخناً" لكل محافظة مفتوحة هذا الشهر
+    function updateRegionalDemand() {
+        const productIds = Object.keys(baseProductPrices);
+        const newDemand = {};
+        gameState.governorates.forEach(g => {
+            if (!g.unlocked) return;
+            newDemand[g.id] = productIds[Math.floor(Math.random() * productIds.length)];
+        });
+        gameState.regionalDemand = newDemand;
+    }
+
+    // 🤝 عقود العملاء طويلة المدى: تنفيذ الالتزام الشهري لكل عقد نشط
+    function processClientContracts() {
+        if (!gameState.clientContracts || gameState.clientContracts.length === 0) return;
+
+        for (let i = gameState.clientContracts.length - 1; i >= 0; i--) {
+            const c = gameState.clientContracts[i];
+            const availableQty = gameState.warehouse.stock[c.product] || 0;
+
+            if (availableQty >= c.qty) {
+                gameState.warehouse.stock[c.product] -= c.qty;
+                const revenue = c.qty * c.pricePerUnit;
+                gameState.money += revenue;
+                gameState.totalRevenueGenerated += revenue;
+                spawnFloatingNumber(revenue);
+                showToast(`🤝 نفّذت التزامك الشهري لعقد (${c.clientName}): ${revenue.toLocaleString()} ج.م.`, "success");
+            } else {
+                const penalty = Math.round(c.qty * c.pricePerUnit * 0.10);
+                gameState.money = Math.max(0, gameState.money - penalty);
+                spawnFloatingNumber(-penalty);
+                showToast(`⚠️ لم يتوفر مخزون كافٍ من (${productNames[c.product] || c.product}) لتلبية عقد (${c.clientName})! غرامة إخلال: ${penalty.toLocaleString()} ج.م.`, "error");
+            }
+
+            c.monthsRemaining--;
+            if (c.monthsRemaining <= 0) {
+                const completionBonus = Math.round(c.qty * c.pricePerUnit * 1.5);
+                gameState.money += completionBonus;
+                spawnFloatingNumber(completionBonus);
+                showToast(`🎉 انتهى عقد (${c.clientName}) بنجاح بعد ${c.totalMonths} أشهر من الالتزام! مكافأة إتمام العقد: ${completionBonus.toLocaleString()} ج.م.`, "achievement");
+                gameState.clientContracts.splice(i, 1);
+            }
+        }
+        updateUI();
+    }
+
+    // 🤝 تجديد عروض عقود العملاء طويلة المدى المتاحة للتوقيع (بحد أقصى عرضين وعقدين نشطين)
+    function refreshContractOffers() {
+        gameState.contractOffers = [];
+        if ((gameState.clientContracts || []).length >= 2) return;
+
+        const availableProducts = Object.keys(productNames).filter(pid => gameState.signedContracts[pid]);
+        if (availableProducts.length === 0) return;
+
+        const offerCount = Math.min(2, availableProducts.length);
+        const shuffled = [...availableProducts].sort(() => Math.random() - 0.5).slice(0, offerCount);
+
+        shuffled.forEach(pid => {
+            const qty = (Math.floor(Math.random() * 3) + 2) * 50; // 100 - 250 كرتونة شهرياً
+            const pricePerUnit = Math.round(baseProductPrices[pid] * (1.35 + Math.random() * 0.25)); // سعر أقل من صفقات السوق الحرة لكن مضمون
+            const months = Math.floor(Math.random() * 4) + 3; // 3 إلى 6 أشهر
+
+            gameState.contractOffers.push({
+                id: Date.now() + Math.random(),
+                clientName: clientNames[Math.floor(Math.random() * clientNames.length)],
+                product: pid,
+                qty, pricePerUnit, months
+            });
+        });
+    }
+
+    window.acceptContractOffer = function(offerId) {
+        const offer = gameState.contractOffers.find(o => o.id === offerId);
+        if (!offer) return;
+        if ((gameState.clientContracts || []).length >= 2) return showToast("لا يمكنك الالتزام بأكثر من عقدين طويلي المدى في نفس الوقت!", "error");
+
+        gameState.clientContracts.push({
+            id: Date.now() + Math.random(),
+            clientName: offer.clientName,
+            product: offer.product,
+            qty: offer.qty,
+            pricePerUnit: offer.pricePerUnit,
+            monthsRemaining: offer.months,
+            totalMonths: offer.months
+        });
+
+        gameState.contractOffers = gameState.contractOffers.filter(o => o.id !== offerId);
+        showToast(`📝 تم توقيع عقد طويل المدى مع (${offer.clientName}) لمدة ${offer.months} أشهر!`, "success");
+        updateUI();
+        showTab('sales');
+    };
+
+    // 🚚 معالجة وصول شحنات الموردين تدريجياً حسب سرعة كل مورد
+    function processIncomingShipments() {
+        if (!gameState.incomingShipments || gameState.incomingShipments.length === 0) return;
+
+        for (let i = gameState.incomingShipments.length - 1; i >= 0; i--) {
+            const shipment = gameState.incomingShipments[i];
+            shipment.timeLeft--;
+
+            if (shipment.timeLeft <= 0) {
+                let qty = shipment.qty;
+                let spoiledMsg = "";
+
+                if (shipment.riskPercent > 0 && Math.random() < shipment.riskPercent) {
+                    const lostQty = Math.round(qty * (0.15 + Math.random() * 0.15));
+                    qty -= lostQty;
+                    spoiledMsg = ` ⚠️ وصلت ${lostQty} كرتونة تالفة الجودة وتم استبعادها.`;
+                }
+
+                const currentStock = Object.values(gameState.warehouse.stock).reduce((a, b) => a + (b || 0), 0);
+                const freeCapacity = Math.max(0, gameState.warehouse.capacity - currentStock);
+                const finalQty = Math.min(qty, freeCapacity);
+
+                gameState.warehouse.stock[shipment.product] = (gameState.warehouse.stock[shipment.product] || 0) + finalQty;
+
+                showToast(`📥 وصلت شحنة (${productNames[shipment.product] || shipment.product}) من ${shipment.supplierName} بكمية ${finalQty} كرتونة.${spoiledMsg}`, "success");
+                gameState.incomingShipments.splice(i, 1);
+                updateUI();
+                if (gameState.currentTab === 'warehouse') showTab('warehouse');
+            }
+        }
+    }
+
+    // 🔄 إعادة الطلب التلقائي: يشتري تلقائياً عند انخفاض المخزون عن الحد المحدد (بمورد قياسي)
+    function processAutoReorder() {
+        if (!gameState.autoReorder) return;
+        Object.keys(gameState.autoReorder).forEach(pid => {
+            const cfg = gameState.autoReorder[pid];
+            if (!cfg || !cfg.enabled) return;
+            if (!gameState.signedContracts[pid]) return;
+
+            const currentStock = gameState.warehouse.stock[pid] || 0;
+            if (currentStock >= 100) return; // الحد الأدنى الثابت لإعادة الطلب
+
+            const qty = 150;
+            const supplier = supplierProfiles.find(s => s.id === 'standard');
+            const price = Math.round((gameState.marketPrices[pid] || baseProductPrices[pid]) * supplier.priceMult);
+            const totalCost = price * qty;
+            if (gameState.money < totalCost) return; // لا رصيد كافٍ، يحاول مجدداً لاحقاً
+
+            gameState.money -= totalCost;
+            spawnFloatingNumber(-totalCost);
+
+            if (supplier.arrivalDelay <= 0) {
+                gameState.warehouse.stock[pid] = (gameState.warehouse.stock[pid] || 0) + qty;
+            } else {
+                gameState.incomingShipments.push({
+                    id: Date.now() + Math.random(),
+                    product: pid, qty, timeLeft: supplier.arrivalDelay,
+                    totalTime: supplier.arrivalDelay,
+                    riskPercent: supplier.riskPercent, supplierName: supplier.name
+                });
+            }
+            showToast(`🔄 إعادة طلب تلقائي: تم طلب ${qty} كرتونة ${productNames[pid] || pid} لأن المخزون قل عن الحد الأدنى.`, "info");
+        });
+    }
+
+    window.toggleAutoReorder = function(product) {
+        if (!gameState.autoReorder[product]) gameState.autoReorder[product] = { enabled: false };
+        gameState.autoReorder[product].enabled = !gameState.autoReorder[product].enabled;
+        showToast(`${gameState.autoReorder[product].enabled ? '✅ تم تفعيل' : '⛔ تم إيقاف'} إعادة الطلب التلقائي لـ ${productNames[product] || product}.`, "info");
+        showTab('warehouse');
+    };
 
     function processDeliveries() {
         if (!gameState.activeDeliveries || gameState.activeDeliveries.length === 0) return;
@@ -355,6 +670,11 @@
                 gameState.money += finalRev;
                 gameState.totalRevenueGenerated += finalRev;
                 AudioEngine.playMoneySound();
+                spawnFloatingNumber(finalRev);
+
+                if (delivery.isExport) {
+                    gameState.exportDealsCompleted = (gameState.exportDealsCompleted || 0) + 1;
+                }
 
                 if (delivery.client) {
                     gameState.vipClients[delivery.client] = (gameState.vipClients[delivery.client] || 0) + 1;
@@ -423,6 +743,11 @@
 
         const totalExpenses = driverSalaries + repSalaries + truckMaintenance + loanPayment;
         gameState.money -= totalExpenses;
+        spawnFloatingNumber(-totalExpenses);
+
+        // تسجيل نقطة بيانات شهرية لرسم بياني نمو الأرباح (آخر 12 شهر فقط)
+        gameState.revenueHistory.push({ month: gameState.month - 1, total: gameState.totalRevenueGenerated });
+        if (gameState.revenueHistory.length > 12) gameState.revenueHistory.shift();
 
         if (!gameState.aiCompetitor.isAcquired && gameState.governorates.filter(g => g.unlocked).length < 3) {
             gameState.aiCompetitor.share = Math.min(40, gameState.aiCompetitor.share + 2);
@@ -442,6 +767,7 @@
         
         let maxDeals = 6 + (gameState.marketingLevel * 2);
         if (gameState.techTree.app) maxDeals += 3; // تطبيق الموبايل يزود الصفقات المتاحة
+        maxDeals += (gameState.office.level - 1) * 2; // تطوير المقر يزود طاقة استقبال الصفقات (+2 لكل مستوى)
 
         if (gameState.marketDeals.length >= maxDeals) gameState.marketDeals.shift();
 
@@ -460,7 +786,14 @@
         if (products.length === 0) return;
 
         const prod = products[Math.floor(Math.random() * products.length)];
-        const client = clientNames[Math.floor(Math.random() * clientNames.length)];
+
+        // 🌍 تصدير دولي: صفقة نادرة وضخمة القيمة تظهر فقط بعد فتح كل المحافظات (محتوى نهاية اللعبة)
+        const exportReady = gameState.governorates.every(g => g.unlocked);
+        const isExport = exportReady && Math.random() < 0.10;
+
+        const client = isExport
+            ? exportClientNames[Math.floor(Math.random() * exportClientNames.length)]
+            : clientNames[Math.floor(Math.random() * clientNames.length)];
         
         const vipLevel = gameState.vipClients[client] || 0;
         const vipBonus = vipLevel > 5 ? 0.25 : (vipLevel > 2 ? 0.10 : 0);
@@ -470,8 +803,12 @@
             seasonBonus = gameState.activeSeason.multiplier - 1;
         }
 
+        // 📍 الطلب الإقليمي المتغير: منتج بعينه مطلوب بقوة في المحافظة هذا الشهر
+        const regionalBonus = (gameState.regionalDemand[selectedGov.id] === prod.id) ? 0.30 : 0;
+
         const isRush = Math.random() < 0.25; 
         const rushMultiplier = isRush ? 1.8 : 1.0;
+        const exportMultiplier = isExport ? 2.3 : 1.0;
 
         if (isRush) AudioEngine.playAlertSound();
 
@@ -483,10 +820,10 @@
         if (gameState.warehouse.hasAutoLoader) baseDeliveryTime = Math.round(baseDeliveryTime * 0.7);
         if (gameState.techTree.gps) baseDeliveryTime = Math.round(baseDeliveryTime * 0.85); // نظام GPS يقلل زمه الشحن
         
-        let totalRev = Math.round(qty * pricePerUnit * gameState.marketingMultiplier * (1 + selectedGov.bonus + vipBonus + seasonBonus) * rushMultiplier);
+        let totalRev = Math.round(qty * pricePerUnit * gameState.marketingMultiplier * (1 + selectedGov.bonus + vipBonus + seasonBonus + regionalBonus) * rushMultiplier * exportMultiplier);
 
         const newDeal = {
-            id: Date.now(),
+            id: Date.now() + Math.random(),
             govId: selectedGov.id,
             govName: selectedGov.name,
             deliveryTime: baseDeliveryTime,
@@ -499,7 +836,10 @@
             reqTruck: prod.reqTruck,
             isRush: isRush,
             rushTimer: isRush ? 20 : 0, 
-            isVip: vipLevel >= 3
+            isVip: vipLevel >= 3,
+            isExport: isExport,
+            isRegional: regionalBonus > 0,
+            negotiated: false
         };
 
         gameState.marketDeals.push(newDeal);
@@ -527,7 +867,7 @@
                     gameState.warehouse.stock[deal.product] -= deal.qty;
 
                     gameState.activeDeliveries.push({
-                        id: Date.now(),
+                        id: Date.now() + Math.random(),
                         client: deal.client,
                         govId: deal.govId,
                         govName: deal.govName,
@@ -535,7 +875,9 @@
                         timeLeft: deal.deliveryTime,
                         totalTime: deal.deliveryTime,
                         repIndex: repIndex,
-                        truckType: reqTruck
+                        truckType: reqTruck,
+                        product: deal.product,
+                        isExport: deal.isExport
                     });
 
                     gameState.marketDeals.splice(dealIndex, 1);
@@ -552,17 +894,26 @@
         if (!gameState.achievements.firstMillion && gameState.totalRevenueGenerated >= 1000000) {
             gameState.achievements.firstMillion = true;
             gameState.money += 100000;
-            showToast("🏆 إنجاز جديد: نادي المليونير! حصلت على مكافأة 100,000 ج.م", "success");
+            spawnFloatingNumber(100000);
+            showToast("🏆 إنجاز جديد: نادي المليونير! حصلت على مكافأة 100,000 ج.م", "achievement");
         }
         if (!gameState.achievements.fleetOwner && (gameState.trucks + gameState.refrigeratedTrucks) >= 5) {
             gameState.achievements.fleetOwner = true;
             gameState.money += 50000;
-            showToast("🏆 إنجاز جديد: ملك الطريق! امتلاك 5 شاحنات. مكافأة 50,000 ج.م", "success");
+            spawnFloatingNumber(50000);
+            showToast("🏆 إنجاز جديد: ملك الطريق! امتلاك 5 شاحنات. مكافأة 50,000 ج.م", "achievement");
         }
         if (!gameState.achievements.techMaster && gameState.techTree.app && gameState.techTree.gps && gameState.techTree.security) {
             gameState.achievements.techMaster = true;
             gameState.money += 150000;
-            showToast("🏆 إنجاز جديد: رواد التكنولوجيا! تم شراء كافة التقنيات الذكية. مكافأة 150,000 ج.م", "success");
+            spawnFloatingNumber(150000);
+            showToast("🏆 إنجاز جديد: رواد التكنولوجيا! تم شراء كافة التقنيات الذكية. مكافأة 150,000 ج.م", "achievement");
+        }
+        if (!gameState.achievements.globalTrader && (gameState.exportDealsCompleted || 0) >= 1) {
+            gameState.achievements.globalTrader = true;
+            gameState.money += 200000;
+            spawnFloatingNumber(200000);
+            showToast("🏆 إنجاز جديد: التاجر العالمي 🌍! أتممت أول صفقة تصدير دولي. مكافأة 200,000 ج.م", "achievement");
         }
     }
 
@@ -615,6 +966,7 @@
         gameState.playerName = inputVal ? `التاجر ${inputVal}` : 'التاجر الجديد';
         document.getElementById('name-modal').classList.add('hidden');
         document.getElementById('dashboard-screen').classList.remove('hidden');
+        updateRegionalDemand();
         showTab('admin', document.getElementById('btn-admin'));
         updateUI();
         saveGameData(false);
@@ -638,9 +990,21 @@
     };
 
     window.openExportModal = async function() {
-        await saveGameData(false);
-        const dataStr = JSON.stringify(gameState);
-        const code = btoa(encodeURIComponent(dataStr));
+        // لو بنصدّر من شاشة البداية (قبل ما تبدأ الجلسة)، نقرأ الحفظة الحقيقية من التخزين المحلي أولاً
+        const dashboardHidden = document.getElementById('dashboard-screen').classList.contains('hidden');
+        if (dashboardHidden) {
+            const dataStr = localStorage.getItem(SAVE_KEY_PRIMARY) || localStorage.getItem(SAVE_KEY_BACKUP);
+            if (!dataStr) return showToast("لا توجد بيانات محفوظة لتصديرها بعد! ابدأ لعبة أولاً.", "error");
+            try {
+                const loaded = JSON.parse(dataStr);
+                gameState = Object.assign({}, JSON.parse(JSON.stringify(defaultGameState)), loaded);
+                normalizeGameState();
+            } catch (e) { return showToast("تعذر قراءة الحفظة الحالية للتصدير!", "error"); }
+        } else {
+            await saveGameData(false);
+        }
+        const dataStr2 = JSON.stringify(gameState);
+        const code = btoa(encodeURIComponent(dataStr2));
         document.getElementById('export-code-area').value = code;
         document.getElementById('export-code-modal').classList.remove('hidden');
     };
@@ -674,9 +1038,14 @@
                 }
 
                 gameState = Object.assign({}, JSON.parse(JSON.stringify(defaultGameState)), parsedData);
+                normalizeGameState();
                 await saveGameData(false);
                 updateUI();
                 closeModal('import-code-modal');
+                closeModal('start-settings-modal');
+                document.getElementById('start-screen').classList.add('hidden');
+                document.getElementById('name-modal').classList.add('hidden');
+                document.getElementById('dashboard-screen').classList.remove('hidden');
                 showTab('admin');
                 showToast("تم استعادة كافة البيانات وحفظها بنجاح!", "success");
             } else { showToast("كود الاسترجاع غير صالح!", "error"); }
@@ -690,9 +1059,11 @@
         localStorage.removeItem(SAVE_KEY_BACKUP);
         gameState = JSON.parse(JSON.stringify(defaultGameState));
         closeModal('reset-confirm-modal');
+        closeModal('start-settings-modal');
         document.getElementById('dashboard-screen').classList.add('hidden');
-        document.getElementById('name-modal').classList.remove('hidden');
-        document.getElementById('player-name-input').value = "";
+        document.getElementById('name-modal').classList.add('hidden');
+        document.getElementById('start-screen').classList.remove('hidden');
+        refreshStartScreenState();
         showToast("تم مسح كافة البيانات وإعادة اللعبة للوضع الافتراضي.", "info");
     }
     window.executeGameReset = executeGameReset;
@@ -735,7 +1106,7 @@
         const container = document.getElementById('toast-container');
         const toast = document.createElement('div');
         toast.className = `toast-msg ${type}`;
-        let icon = type === "success" ? "✅" : (type === "error" ? "⚠️" : "🔔");
+        let icon = type === "success" ? "✅" : (type === "error" ? "⚠️" : (type === "achievement" ? "🏆" : "🔔"));
         toast.innerHTML = `<span>${icon}</span> <span>${message}</span>`;
         container.appendChild(toast);
         setTimeout(() => {
@@ -744,6 +1115,121 @@
             toast.style.transition = 'all 0.5s ease';
             setTimeout(() => toast.remove(), 500);
         }, 3200);
+    }
+
+    // ==========================================
+    // 🎨 مساعدات الرسومات: أرقام طايرة + خريطة SVG + رسم بياني
+    // ==========================================
+
+    // يعرض رقم "+X ج.م" أو "-X ج.م" طاير بجانب رصيد الخزينة بأعلى الشاشة
+    function spawnFloatingNumber(amount) {
+        try {
+            if (!amount) return;
+            const container = document.getElementById('game-container');
+            const anchor = document.getElementById('player-money');
+            if (!container || !anchor) return;
+
+            const containerRect = container.getBoundingClientRect();
+            const anchorRect = anchor.getBoundingClientRect();
+
+            const el = document.createElement('div');
+            const isNeg = amount < 0;
+            el.className = 'floating-number' + (isNeg ? ' negative' : '');
+            el.innerText = `${isNeg ? '-' : '+'}${Math.abs(Math.round(amount)).toLocaleString()} ج.م`;
+            el.style.left = `${anchorRect.left - containerRect.left + (Math.random() * 30 - 15)}px`;
+            el.style.top = `${anchorRect.top - containerRect.top + 18}px`;
+            container.appendChild(el);
+            setTimeout(() => el.remove(), 1550);
+        } catch (e) { /* رسوم غير حرجة، يتم تجاهل أي خطأ فيها بأمان */ }
+    }
+
+    // يبني خريطة SVG تخطيطية (Stylized) لمحافظات التوزيع ومسار الشحن بينها
+    function buildGovernorateMapSVG() {
+        const positions = {
+            domyat:   { x: 45,  y: 120 },
+            dakahlia: { x: 145, y: 55  },
+            sharqia:  { x: 245, y: 120 },
+            cairo:    { x: 345, y: 55  },
+            alex:     { x: 425, y: 120 }
+        };
+        const chain = ['domyat', 'dakahlia', 'sharqia', 'cairo', 'alex'];
+
+        let lines = '';
+        for (let i = 0; i < chain.length - 1; i++) {
+            const a = positions[chain[i]];
+            const b = positions[chain[i + 1]];
+            const toGov = gameState.governorates.find(g => g.id === chain[i + 1]);
+            const isActive = toGov && toGov.unlocked;
+            lines += `<line x1="${a.x}" y1="${a.y}" x2="${b.x}" y2="${b.y}" stroke="${isActive ? '#10b981' : '#334155'}" stroke-width="3" stroke-dasharray="${isActive ? '0' : '6,6'}" />`;
+        }
+
+        let nodes = '';
+        gameState.governorates.forEach(g => {
+            const pos = positions[g.id];
+            if (!pos) return;
+            const canUnlock = gameState.level >= g.minLvl;
+            const fillColor = g.unlocked ? '#10b981' : (canUnlock ? '#f59e0b' : '#334155');
+            const labelColor = g.unlocked ? '#10b981' : '#94a3b8';
+            const shortName = g.name.split(' ')[0];
+
+            nodes += `
+                <g style="cursor:${!g.unlocked && canUnlock ? 'pointer' : 'default'};" onclick="${!g.unlocked && canUnlock ? `unlockGovernorate('${g.id}')` : ''}">
+                    <circle cx="${pos.x}" cy="${pos.y}" r="22" fill="${fillColor}" fill-opacity="0.22" stroke="${fillColor}" stroke-width="2.5" />
+                    <circle cx="${pos.x}" cy="${pos.y}" r="6" fill="${fillColor}" />
+                    ${g.id === 'domyat' ? `<text x="${pos.x}" y="${pos.y - 32}" text-anchor="middle" font-size="16">🏢</text>` : `<text x="${pos.x}" y="${pos.y + 5}" text-anchor="middle" font-size="13">${g.unlocked ? '✅' : '🔒'}</text>`}
+                    <text x="${pos.x}" y="${pos.y + 42}" text-anchor="middle" fill="${labelColor}" font-size="11" font-weight="800">${shortName}</text>
+                </g>
+            `;
+        });
+
+        return `
+            <div class="gov-map-wrap">
+                <svg viewBox="0 0 460 175" style="width:100%; max-width:560px; height:auto; display:block; margin:0 auto;">
+                    ${lines}
+                    ${nodes}
+                </svg>
+                <div style="text-align:center; font-size:0.72rem; color:var(--text-muted); margin-top:4px;">اضغط على أي محافظة مقفولة (🔒) لفتحها مباشرة إن كنت مستوفياً للشروط</div>
+            </div>
+        `;
+    }
+
+    // يبني رسم بياني SVG بسيط يوضح نمو إجمالي المبيعات عبر آخر الشهور
+    function buildRevenueChartSVG() {
+        const data = gameState.revenueHistory || [];
+        if (data.length < 2) {
+            return `<div style="color:var(--text-muted); font-size:0.82rem; text-align:center; padding:18px 0;">ستظهر بيانات نمو الأرباح هنا بعد مرور شهرين على الأقل من اللعب.</div>`;
+        }
+
+        const w = 400, h = 130, pad = 12;
+        const values = data.map(d => d.total);
+        const maxV = Math.max(...values, 1);
+        const minV = Math.min(...values, 0);
+        const range = (maxV - minV) || 1;
+        const stepX = (w - pad * 2) / (data.length - 1);
+
+        const points = data.map((d, i) => {
+            const x = pad + i * stepX;
+            const y = h - pad - ((d.total - minV) / range) * (h - pad * 2);
+            return `${x},${y}`;
+        }).join(' ');
+
+        const areaPoints = `${pad},${h - pad} ${points} ${pad + (data.length - 1) * stepX},${h - pad}`;
+        const lastX = pad + (data.length - 1) * stepX;
+        const lastY = h - pad - ((data[data.length - 1].total - minV) / range) * (h - pad * 2);
+
+        return `
+            <div class="revenue-chart-wrap">
+                <svg viewBox="0 0 ${w} ${h}" style="width:100%; height:120px; display:block;">
+                    <polyline points="${areaPoints}" fill="rgba(16, 185, 129, 0.15)" stroke="none" />
+                    <polyline points="${points}" fill="none" stroke="#10b981" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+                    <circle cx="${lastX}" cy="${lastY}" r="4" fill="#10b981" />
+                </svg>
+                <div style="display:flex; justify-content:space-between; font-size:0.72rem; color:var(--text-muted); margin-top:2px;">
+                    <span>شهر ${data[0].month}</span>
+                    <span>الحالي: ${data[data.length - 1].total.toLocaleString()} ج.م</span>
+                </div>
+            </div>
+        `;
     }
 
     window.buyCoolingSystem = function() {
@@ -800,18 +1286,35 @@
         showTab('warehouse');
     };
 
-    window.buyStock = function(product, count) {
-        const pricePerUnit = gameState.marketPrices[product] || baseProductPrices[product];
+    window.buyStock = function(product, count, supplierId = 'standard') {
+        const supplier = supplierProfiles.find(s => s.id === supplierId) || supplierProfiles[1];
+        const marketPrice = gameState.marketPrices[product] || baseProductPrices[product];
+        const pricePerUnit = Math.round(marketPrice * supplier.priceMult);
         const totalCost = pricePerUnit * count;
         const currentStock = (gameState.warehouse.stock.dairy || 0) + (gameState.warehouse.stock.cleaners || 0) + (gameState.warehouse.stock.frozen || 0) + (gameState.warehouse.stock.bakery || 0) + (gameState.warehouse.stock.dryfood || 0) + (gameState.warehouse.stock.cosmetics || 0);
+        const pendingQty = gameState.incomingShipments.reduce((sum, s) => sum + (s.product === product ? s.qty : 0), 0);
         
-        if(currentStock + count > gameState.warehouse.capacity) return showToast("المخزن لا يتسع لهذه الكمية!", "error");
+        if(currentStock + pendingQty + count > gameState.warehouse.capacity) return showToast("المخزن (بما فيه الشحنات الواردة) لا يتسع لهذه الكمية!", "error");
         if(gameState.money < totalCost) return showToast("الرصيد غير كاف لشراء البضاعة!", "error");
 
         gameState.money -= totalCost;
-        gameState.warehouse.stock[product] = (gameState.warehouse.stock[product] || 0) + count;
+        spawnFloatingNumber(-totalCost);
+
+        if (supplier.arrivalDelay <= 0) {
+            // مورد فوري: البضاعة توصل فورًا للمخزن
+            gameState.warehouse.stock[product] = (gameState.warehouse.stock[product] || 0) + count;
+            showToast(`⚡ تم شراء ${count} كرتونة فوراً من ${supplier.name} بسعر ${pricePerUnit} ج.م/كرتونة!`, "success");
+        } else {
+            // مورد اقتصادي أو قياسي: البضاعة في الطريق وتصل بعد فترة، مع احتمال خسارة جزء من الجودة
+            gameState.incomingShipments.push({
+                id: Date.now() + Math.random(),
+                product, qty: count, timeLeft: supplier.arrivalDelay, totalTime: supplier.arrivalDelay,
+                riskPercent: supplier.riskPercent, supplierName: supplier.name
+            });
+            showToast(`🚚 تم طلب ${count} كرتونة من ${supplier.name} بسعر ${pricePerUnit} ج.م/كرتونة، ستصل خلال ${supplier.arrivalDelay} ثانية.`, "info");
+        }
+
         updateUI();
-        showToast(`📦 تم شراء ${count} كرتونة بسعر البورصة (${pricePerUnit} ج.م)!`, "success");
         showTab('warehouse');
     };
 
@@ -947,14 +1450,16 @@
         gameState.warehouse.stock[deal.product] -= deal.qty;
         
         gameState.activeDeliveries.push({
-            id: Date.now(),
+            id: Date.now() + Math.random(),
             client: deal.client,
             govId: deal.govId,
             govName: deal.govName,
             totalRevenue: deal.totalRevenue,
             timeLeft: deal.deliveryTime,
             totalTime: deal.deliveryTime,
-            truckType: reqTruck
+            truckType: reqTruck,
+            product: deal.product,
+            isExport: deal.isExport
         });
 
         gameState.marketDeals.splice(dealIndex, 1);
@@ -962,6 +1467,100 @@
 
         updateUI();
         showToast(`🚚 خرجت الشاحنة لتوصيل الطلب إلى ${deal.govName}! مدة الرحلة: ${deal.deliveryTime} ثوانٍ`);
+    };
+
+    // 🤝 مفاوضة على الصفقات الكبيرة (فوق 60,000 ج.م): محاولة واحدة لكل صفقة، بمخاطرة حقيقية
+    window.negotiateDeal = function(dealId) {
+        const deal = gameState.marketDeals.find(d => d.id === dealId);
+        if (!deal) return;
+        if (deal.negotiated) return showToast("لقد فاوضت هذا العميل بالفعل على هذه الصفقة!", "error");
+
+        deal.negotiated = true;
+        const roll = Math.random();
+
+        if (roll < 0.55) {
+            const boost = 0.15 + (Math.random() * 0.10);
+            deal.totalRevenue = Math.round(deal.totalRevenue * (1 + boost));
+            showToast(`🤝 وافق العميل (${deal.client}) على سعر أفضل! ارتفعت قيمة الصفقة بنسبة ${Math.round(boost * 100)}%.`, "success");
+        } else if (roll < 0.90) {
+            deal.totalRevenue = Math.round(deal.totalRevenue * 0.85);
+            showToast(`😕 لم يقتنع العميل (${deal.client}) بالكامل، وخفّض قيمة الصفقة بنسبة 15%.`, "error");
+        } else {
+            const idx = gameState.marketDeals.findIndex(d => d.id === dealId);
+            if (idx !== -1) gameState.marketDeals.splice(idx, 1);
+            showToast(`🚪 انسحب العميل (${deal.client}) من الصفقة بعد المفاوضة! حاول تقبل الصفقات الكبيرة بسرعة أكبر في المرة القادمة.`, "error");
+        }
+
+        updateUI();
+        showTab('deals');
+    };
+
+    // 📊 فرز صفقات السوق: افتراضي / الأعلى ربحاً / الأقرب انتهاءً
+    window.setDealsSortMode = function(mode) {
+        gameState.dealsSortMode = mode;
+        showTab('deals');
+    };
+
+    // 📦 تجميع عدة صفقات لنفس المحافظة ونفس نوع الشاحنة في رحلة واحدة (Route Bundling)
+    let selectedDealIds = new Set(); // اختيار مؤقت لا يُحفظ ضمن ملف الحفظ
+
+    window.toggleDealSelection = function(dealId) {
+        if (selectedDealIds.has(dealId)) selectedDealIds.delete(dealId);
+        else selectedDealIds.add(dealId);
+        showTab('deals');
+    };
+
+    window.executeBundledDeals = function() {
+        const ids = Array.from(selectedDealIds);
+        if (ids.length < 2) return showToast("اختر صفقتين على الأقل لنفس المحافظة ونفس نوع الشاحنة لتجميعهما!", "error");
+
+        const deals = gameState.marketDeals.filter(d => ids.includes(d.id));
+        if (deals.length < 2) { selectedDealIds.clear(); return showToast("بعض الصفقات المختارة لم تعد متاحة!", "error"); }
+
+        const govId = deals[0].govId;
+        const reqTruck = deals[0].reqTruck || 'standard';
+        if (!deals.every(d => d.govId === govId && (d.reqTruck || 'standard') === reqTruck)) {
+            return showToast("لا يمكن تجميع صفقات لمحافظات أو أنواع شاحنات مختلفة في رحلة واحدة!", "error");
+        }
+
+        const productTotals = {};
+        deals.forEach(d => { productTotals[d.product] = (productTotals[d.product] || 0) + d.qty; });
+        for (const pid in productTotals) {
+            if ((gameState.warehouse.stock[pid] || 0) < productTotals[pid]) {
+                return showToast(`البضاعة (${productNames[pid] || pid}) غير متوفرة بالمخزن لتغطية كل الصفقات المجمعة!`, "error");
+            }
+        }
+        if (getAvailableTrucks(reqTruck) <= 0) return showToast("لا توجد شاحنة متاحة من هذا النوع لتنفيذ الرحلة المجمعة!", "error");
+        if (gameState.staff.drivers <= gameState.activeDeliveries.length) return showToast("لا يوجد سائق متاح حالياً!", "error");
+
+        Object.keys(productTotals).forEach(pid => { gameState.warehouse.stock[pid] -= productTotals[pid]; });
+
+        const totalRevenue = deals.reduce((sum, d) => sum + d.totalRevenue, 0);
+        const maxDeliveryTime = Math.max(...deals.map(d => d.deliveryTime));
+        const bundleBonus = Math.round(totalRevenue * 0.05 * (deals.length - 1)); // مكافأة تجميع الرحلات
+
+        gameState.activeDeliveries.push({
+            id: Date.now() + Math.random(),
+            client: `رحلة مجمّعة (${deals.length} عملاء)`,
+            govId: govId,
+            govName: deals[0].govName,
+            totalRevenue: totalRevenue + bundleBonus,
+            timeLeft: maxDeliveryTime,
+            totalTime: maxDeliveryTime,
+            truckType: reqTruck,
+            isBundle: true
+        });
+
+        ids.forEach(id => {
+            const idx = gameState.marketDeals.findIndex(d => d.id === id);
+            if (idx !== -1) gameState.marketDeals.splice(idx, 1);
+        });
+
+        selectedDealIds.clear();
+        AudioEngine.playTruckSound();
+        updateUI();
+        showToast(`📦 تم تجميع ${deals.length} صفقات إلى ${deals[0].govName} في رحلة واحدة! مكافأة التجميع: +${bundleBonus.toLocaleString()} ج.م`, "success");
+        showTab('deals');
     };
 
     function showTab(tabName, btnElement = null) {
@@ -1014,6 +1613,10 @@
                             <button class="action-btn buy-btn" onclick="acquireCompetitor()">الاستحواذ والشراء الكامل (3,000,000 ج.م)</button>
                         ` : '<div style="color:var(--accent-green); font-weight:700;">أنت المحتكر الرئيسي لسوق التوزيع الآن!</div>'}
                     </div>
+                    <div class="info-card">
+                        <div class="card-title">📊 نمو إجمالي المبيعات</div>
+                        ${buildRevenueChartSVG()}
+                    </div>
                 </div>
             `;
         }
@@ -1021,6 +1624,7 @@
         else if(tabName === 'map') {
             let html = `<h2>🗺️ خريطة محافظات التوزيع بالجمهورية</h2>
             <p style="color:var(--text-muted); margin-top:5px;">افتح محافظات جديدة لزيادة نسبة أرباحك الصافية من كل صفقة لتوسيع تجارتك</p>
+            ${buildGovernorateMapSVG()}
             <div class="card-grid">`;
 
             gameState.governorates.forEach(g => {
@@ -1037,6 +1641,7 @@
                         <div><b>علاوة الأرباح:</b> +${g.bonus * 100}% أرباح إضافية</div>
                         <div><b>زمن الرحلة:</b> ${g.deliveryTime} ثانية</div>
                         <div><b>تكلفة فتح المحافظة:</b> ${g.cost.toLocaleString()} ج.م</div>
+                        ${isUnlocked && gameState.regionalDemand[g.id] ? `<div style="color:var(--accent-gold); font-weight:800;">📍 الطلب الإقليمي هذا الشهر: ${productNames[gameState.regionalDemand[g.id]] || gameState.regionalDemand[g.id]} (+30% ربح)</div>` : ''}
                         
                         ${!isUnlocked ? `
                             <button class="action-btn buy-btn" 
@@ -1072,10 +1677,44 @@
                 });
             }
 
+            let contractsHtml = '';
+            (gameState.clientContracts || []).forEach(c => {
+                const percent = Math.round(((c.totalMonths - c.monthsRemaining) / c.totalMonths) * 100);
+                contractsHtml += `
+                    <div class="info-card" style="border-color:var(--accent-purple);">
+                        <div class="card-title">🤝 عقد نشط: ${c.clientName}</div>
+                        <div><b>الالتزام الشهري:</b> ${c.qty} كرتونة ${productNames[c.product] || c.product} بسعر ${c.pricePerUnit} ج.م/كرتونة</div>
+                        <div><b>الشهور المتبقية:</b> ${c.monthsRemaining} من أصل ${c.totalMonths}</div>
+                        <div class="month-progress-bar" style="width:100%; height:8px;"><div class="month-progress-fill" style="width:${percent}%; background:var(--accent-purple);"></div></div>
+                        <div style="font-size:0.78rem; color:var(--text-muted); margin-top:4px;">تأكد من توفر المخزون كل شهر لتفادي غرامة الإخلال بالعقد!</div>
+                    </div>
+                `;
+            });
+
+            let offersHtml = '';
+            (gameState.contractOffers || []).forEach(o => {
+                offersHtml += `
+                    <div class="info-card" style="border-color:var(--accent-gold);">
+                        <div class="card-title">📝 عرض عقد جديد: ${o.clientName}</div>
+                        <div><b>المطلوب شهرياً:</b> ${o.qty} كرتونة ${productNames[o.product] || o.product}</div>
+                        <div><b>السعر المضمون:</b> ${o.pricePerUnit} ج.م/كرتونة | <b>المدة:</b> ${o.months} أشهر</div>
+                        <div style="font-size:0.78rem; color:var(--text-muted);">دخل شهري ثابت ومضمون، بس أقل من متوسط ربح السوق الحر مقابل الأمان</div>
+                        <button class="action-btn buy-btn" onclick="acceptContractOffer(${o.id})">توقيع العقد ✍️</button>
+                    </div>
+                `;
+            });
+
             container.innerHTML = `
                 <h2>📈 إدارة المبيعات وأداء المندوبين</h2>
                 <p style="color:var(--text-muted); margin-top:5px;">يقوم المندوبون بجلب الصفقات آلياً واكتساب الخبرة للتطور تلقائياً</p>
                 <div class="card-grid">${repsHtml}</div>
+
+                <h3 style="margin-top:20px; color:var(--accent-gold);">🤝 عقود العملاء طويلة المدى</h3>
+                <p style="color:var(--text-muted); margin-top:5px; font-size:0.85rem;">دخل شهري ثابت مضمون مقابل التزام بكمية وسعر محددين، بدل مخاطرة السوق الحر (حد أقصى عقدين نشطين في نفس الوقت)</p>
+                <div class="card-grid">
+                    ${contractsHtml || '<div style="color:var(--text-muted)">لا توجد عقود نشطة حالياً.</div>'}
+                    ${offersHtml}
+                </div>
             `;
         }
 
@@ -1171,17 +1810,55 @@
         }
 
         else if(tabName === 'company') {
+            const officeDealsBonus = (gameState.office.level - 1) * 2;
             container.innerHTML = `
                 <h2>🏢 مقر الشركة (المقر الرئيسي بدمياط)</h2>
                 <div class="card-grid">
                     <div class="info-card">
                         <div class="card-title">مقر دمياط الرئيسي</div>
                         <div><b>مستوى التجهيزات:</b> Level ${gameState.office.level}</div>
+                        <div><b>طاقة استقبال الصفقات الإضافية:</b> +${officeDealsBonus} صفقة متاحة بالسوق</div>
                         ${!gameState.office.owned ? `
                             <button class="action-btn buy-btn" onclick="buyOffice(150000)">تأسيس المقر (150,000 ج.م)</button>
                         ` : `
-                            <button class="action-btn upgrade-btn" onclick="upgradeOffice(100000)">تطوير المكاتب والتجهيزات (100,000 ج.م)</button>
+                            <button class="action-btn upgrade-btn" onclick="upgradeOffice(100000)">تطوير المكاتب (+2 صفقات إضافية) بـ 100,000 ج.م</button>
                         `}
+                    </div>
+                </div>
+            `;
+        }
+
+        else if(tabName === 'tech') {
+            const t = gameState.techTree;
+            container.innerHTML = `
+                <h2>🧠 قسم التقنية الذكية والتطوير</h2>
+                <p style="color:var(--text-muted); margin-top:5px;">استثمر في تقنيات ذكية تمنحك أفضلية تنافسية دائمة على السوق</p>
+                <div class="card-grid">
+                    <div class="info-card">
+                        <div class="card-title">📱 تطبيق موبايل للطلبات ${t.app ? '<span class="status-badge badge-owned">مفعل</span>' : ''}</div>
+                        <div>يزيد عدد الصفقات المعروضة بالسوق في نفس الوقت بمقدار 3 صفقات إضافية.</div>
+                        <button class="action-btn buy-btn" ${t.app ? 'disabled' : ''} onclick="buyTechNode('app', 60000)">
+                            ${t.app ? 'مفعل بالفعل ✅' : 'تفعيل التطبيق (60,000 ج.م)'}
+                        </button>
+                    </div>
+                    <div class="info-card">
+                        <div class="card-title">📡 نظام تتبع GPS للأسطول ${t.gps ? '<span class="status-badge badge-owned">مفعل</span>' : ''}</div>
+                        <div>يقلل زمن وصول جميع الشحنات بنسبة 15% تقريباً بفضل تحسين المسارات.</div>
+                        <button class="action-btn buy-btn" ${t.gps ? 'disabled' : ''} onclick="buyTechNode('gps', 80000)">
+                            ${t.gps ? 'مفعل بالفعل ✅' : 'تفعيل نظام GPS (80,000 ج.م)'}
+                        </button>
+                    </div>
+                    <div class="info-card">
+                        <div class="card-title">🛡️ شركة أمن وحراسة ${t.security ? '<span class="status-badge badge-owned">مفعل</span>' : ''}</div>
+                        <div>يحمي شحناتك من الأعطال والتلف العشوائي، ويضمن نجاح أي تفتيش مفاجئ من السلامة.</div>
+                        <button class="action-btn buy-btn" ${t.security ? 'disabled' : ''} onclick="buyTechNode('security', 120000)">
+                            ${t.security ? 'مفعل بالفعل ✅' : 'التعاقد مع شركة الأمن (120,000 ج.م)'}
+                        </button>
+                    </div>
+                    <div class="info-card" style="border-color:var(--accent-gold);">
+                        <div class="card-title">🏆 إنجاز رواد التكنولوجيا</div>
+                        <div>فعّل التقنيات الثلاث معاً للحصول على مكافأة فورية قدرها 150,000 ج.م.</div>
+                        <div><b>الحالة:</b> ${gameState.achievements.techMaster ? '<b style="color:var(--accent-green)">تم تحقيقه ✅</b>' : 'قيد الانتظار ⏳'}</div>
                     </div>
                 </div>
             `;
@@ -1190,10 +1867,59 @@
         else if(tabName === 'warehouse') {
             const currentStock = (gameState.warehouse.stock.dairy || 0) + (gameState.warehouse.stock.cleaners || 0) + (gameState.warehouse.stock.frozen || 0) + (gameState.warehouse.stock.bakery || 0) + (gameState.warehouse.stock.dryfood || 0) + (gameState.warehouse.stock.cosmetics || 0);
             const p = gameState.marketPrices;
+            const productIcons = { dairy: '🥛', cleaners: '🧼', frozen: '❄️', bakery: '🥐', dryfood: '🌾', cosmetics: '💄' };
+            const productReqLvl = { dairy: 1, cleaners: 1, frozen: 1, bakery: 2, dryfood: 3, cosmetics: 4 };
+
+            let productsHtml = '';
+            if (gameState.warehouse.owned) {
+                Object.keys(productNames).forEach(pid => {
+                    if (gameState.level < productReqLvl[pid]) return; // لا تظهر منتجات لم يصل مستواك لعقدها بعد
+                    const signed = gameState.signedContracts[pid];
+                    const autoCfg = gameState.autoReorder[pid] || { enabled: false };
+
+                    let supplierButtons = '';
+                    if (signed) {
+                        supplierButtons = supplierProfiles.map(s => {
+                            const price = Math.round(p[pid] * s.priceMult);
+                            const delayLabel = s.arrivalDelay <= 0 ? 'فوري' : `${s.arrivalDelay} ث`;
+                            return `<button class="action-btn buy-btn" style="font-size:0.78rem; padding:6px;" onclick="buyStock('${pid}', 50, '${s.id}')">${s.icon} ${s.name}<br>50 كرتونة (${price * 50} ج.م) - ${delayLabel}</button>`;
+                        }).join('');
+                    }
+
+                    productsHtml += `
+                        <div class="info-card">
+                            <div class="card-title">${productIcons[pid]} ${productNames[pid]} (السعر الأساسي: ${p[pid]} ج.م)</div>
+                            ${signed ? `
+                                <div style="display:flex; flex-direction:column; gap:6px; margin-top:6px;">${supplierButtons}</div>
+                                <button class="action-btn" style="margin-top:8px; background:${autoCfg.enabled ? 'var(--accent-green)' : 'var(--panel-border)'}; color:${autoCfg.enabled ? '#000' : 'var(--text-main)'};" onclick="toggleAutoReorder('${pid}')">
+                                    🔄 إعادة الطلب التلقائي: ${autoCfg.enabled ? 'مفعّلة ✅ (عند نزول المخزون عن 100)' : 'معطّلة ❌'}
+                                </button>
+                            ` : `<div style="color:var(--accent-red); font-size:0.85rem;">يجب توقيع عقد ${productNames[pid]} أولاً من تبويب العقود!</div>`}
+                        </div>
+                    `;
+                });
+            }
+
+            let shipmentsHtml = '';
+            if (gameState.incomingShipments && gameState.incomingShipments.length > 0) {
+                gameState.incomingShipments.forEach(s => {
+                    const percent = Math.round(((s.totalTime - s.timeLeft) / s.totalTime) * 100);
+                    shipmentsHtml += `
+                        <div class="info-card" style="margin-top:10px;">
+                            <div class="card-title">📥 شحنة واردة: ${productNames[s.product] || s.product} (${s.qty} كرتونة)</div>
+                            <div><b>المورد:</b> ${s.supplierName} | <b>الوقت المتبقي:</b> ${s.timeLeft} ثانية</div>
+                            <div class="delivery-track">
+                                <div class="delivery-track-fill" style="width:${percent}%;"></div>
+                                <div class="delivery-truck-icon" style="right:calc(${percent}% - 11px);">📦</div>
+                            </div>
+                        </div>
+                    `;
+                });
+            }
 
             container.innerHTML = `
                 <h2>🏭 المخزن الرئيسي وبورصة الأسعار</h2>
-                <p style="color:var(--text-muted); margin-top:5px;">تتغير أسعار الشراء بالجملة شهرياً حسب البورصة - اشترِ عند الانخفاض!</p>
+                <p style="color:var(--text-muted); margin-top:5px;">تتغير أسعار الشراء بالجملة شهرياً حسب البورصة، ولكل منتج 3 موردين: اقتصادي بطيء ومخاطرة أعلى، قياسي متوازن، وفوري غالي بس مضمون فورًا.</p>
                 <div class="card-grid">
                     <div class="info-card">
                         <div class="card-title">المخزن المركزى (${currentStock} / ${gameState.warehouse.capacity})</div>
@@ -1216,30 +1942,17 @@
                             <button class="action-btn buy-btn" style="margin-top:5px;" ${gameState.warehouse.hasAutoLoader ? 'disabled' : ''} onclick="buyAutoLoader()">
                                 ${gameState.warehouse.hasAutoLoader ? 'نظام التحميل الآلي مفعل ✅' : 'تركيب تحميل آلي -30% وقت (100,000 ج.م)'}
                             </button>
-                        </div>
-
-                        <div class="info-card">
-                            <div class="card-title">🥛 ألبان (السعر الحالي: ${p.dairy} ج.م)</div>
-                            ${gameState.signedContracts.dairy ? `
-                                <button class="action-btn buy-btn" onclick="buyStock('dairy', 50)">شراء 50 كرتونة (${p.dairy * 50} ج.م)</button>
-                            ` : `<div style="color:var(--accent-red); font-size:0.85rem;">يجب توقيع عقد الألبان أولاً!</div>`}
-                        </div>
-
-                        <div class="info-card">
-                            <div class="card-title">🧼 منظفات (السعر الحالي: ${p.cleaners} ج.م)</div>
-                            ${gameState.signedContracts.cleaners ? `
-                                <button class="action-btn buy-btn" onclick="buyStock('cleaners', 50)">شراء 50 كرتونة (${p.cleaners * 50} ج.م)</button>
-                            ` : `<div style="color:var(--accent-red); font-size:0.85rem;">يجب توقيع عقد المنظفات أولاً!</div>`}
-                        </div>
-
-                        <div class="info-card">
-                            <div class="card-title">❄️ مجمدات (السعر الحالي: ${p.frozen} ج.م)</div>
-                            ${gameState.signedContracts.frozen ? `
-                                <button class="action-btn buy-btn" onclick="buyStock('frozen', 50)">شراء 50 كرتونة (${p.frozen * 50} ج.م)</button>
-                            ` : `<div style="color:var(--accent-red); font-size:0.85rem;">يجب توقيع عقد المجمدات أولاً!</div>`}
+                            <div style="font-size:0.78rem; color:var(--text-muted); margin-top:8px;">💡 نظام التبريد يقلل تلف المخزون الراكد شهرياً للنصف</div>
                         </div>
                     ` : ''}
+
+                    ${productsHtml}
                 </div>
+
+                ${shipmentsHtml ? `
+                    <h3 style="margin-top:20px; color:var(--accent-gold);">🚚 شحنات في الطريق للمخزن</h3>
+                    <div>${shipmentsHtml}</div>
+                ` : ''}
             `;
         }
 
@@ -1250,12 +1963,14 @@
             } else {
                 gameState.activeDeliveries.forEach(del => {
                     const percent = Math.round(((del.totalTime - del.timeLeft) / del.totalTime) * 100);
+                    const truckEmoji = del.truckType === 'refrigerated' ? '❄️' : '🚛';
                     deliveriesHtml += `
                         <div class="info-card" style="margin-top:10px;">
                             <div class="card-title">🚚 رحلة إلى: ${del.govName} (${del.client})</div>
                             <div><b>الوقت المتبقي للوصول:</b> ${del.timeLeft} ثانية</div>
-                            <div class="month-progress-bar" style="width:100%; height:12px; margin-top:5px;">
-                                <div class="month-progress-fill" style="width:${percent}%;"></div>
+                            <div class="delivery-track">
+                                <div class="delivery-track-fill" style="width:${percent}%;"></div>
+                                <div class="delivery-truck-icon" style="right:calc(${percent}% - 11px);">${truckEmoji}</div>
                             </div>
                         </div>
                     `;
@@ -1303,6 +2018,27 @@
                             ${gameState.signedContracts.frozen ? 'تم التوقيع بنجاح' : 'توقيع العقد (150,000 ج.م)'}
                         </button>
                     </div>
+                    <div class="info-card">
+                        <div class="card-title">🥐 عقد توريد مخبوزات وحلويات</div>
+                        <div style="font-size:0.8rem; color:var(--text-muted);">يتطلب المستوى Level 2</div>
+                        <button class="action-btn buy-btn" ${gameState.signedContracts.bakery || gameState.level < 2 ? 'disabled' : ''} onclick="signContract('bakery', 45000, 2)">
+                            ${gameState.signedContracts.bakery ? 'تم التوقيع بنجاح' : (gameState.level < 2 ? 'يتطلب Level 2' : 'توقيع العقد (45,000 ج.م)')}
+                        </button>
+                    </div>
+                    <div class="info-card">
+                        <div class="card-title">🌾 عقد توريد مواد غذائية وجافة</div>
+                        <div style="font-size:0.8rem; color:var(--text-muted);">يتطلب المستوى Level 3</div>
+                        <button class="action-btn buy-btn" ${gameState.signedContracts.dryfood || gameState.level < 3 ? 'disabled' : ''} onclick="signContract('dryfood', 75000, 3)">
+                            ${gameState.signedContracts.dryfood ? 'تم التوقيع بنجاح' : (gameState.level < 3 ? 'يتطلب Level 3' : 'توقيع العقد (75,000 ج.م)')}
+                        </button>
+                    </div>
+                    <div class="info-card">
+                        <div class="card-title">💄 عقد توريد مستحضرات تجميل</div>
+                        <div style="font-size:0.8rem; color:var(--text-muted);">يتطلب المستوى Level 4</div>
+                        <button class="action-btn buy-btn" ${gameState.signedContracts.cosmetics || gameState.level < 4 ? 'disabled' : ''} onclick="signContract('cosmetics', 120000, 4)">
+                            ${gameState.signedContracts.cosmetics ? 'تم التوقيع بنجاح' : (gameState.level < 4 ? 'يتطلب Level 4' : 'توقيع العقد (120,000 ج.م)')}
+                        </button>
+                    </div>
                 </div>
             `;
         }
@@ -1314,20 +2050,36 @@
             } else if(gameState.marketDeals.length === 0) {
                 dealsHtml = `<div style="color:var(--text-muted)">جاري بحث السوق... تظهر صفقات جديدة كل 6 ثوانٍ!</div>`;
             } else {
-                gameState.marketDeals.forEach(deal => {
+                let sortedDeals = [...gameState.marketDeals];
+                if (gameState.dealsSortMode === 'revenue') {
+                    sortedDeals.sort((a, b) => b.totalRevenue - a.totalRevenue);
+                } else if (gameState.dealsSortMode === 'expiry') {
+                    sortedDeals.sort((a, b) => (a.isRush ? a.rushTimer : 999) - (b.isRush ? b.rushTimer : 999));
+                }
+
+                sortedDeals.forEach(deal => {
                     const reqTruck = deal.reqTruck || 'standard';
                     const hasStock = (gameState.warehouse.stock[deal.product] || 0) >= deal.qty;
                     const hasTruck = getAvailableTrucks(reqTruck) > 0;
                     const hasDriver = gameState.staff.drivers > gameState.activeDeliveries.length;
                     const canExecute = hasStock && hasTruck && hasDriver;
                     const truckNameStr = reqTruck === 'refrigerated' ? '❄️ شاحنة مبردة' : '🚛 جامبو عادية';
+                    const isSelected = selectedDealIds.has(deal.id);
+                    const canNegotiate = deal.totalRevenue >= 60000 && !deal.negotiated;
 
                     dealsHtml += `
-                        <div class="info-card" style="${deal.isRush ? 'border-color:var(--accent-red); background:rgba(239, 68, 68, 0.05);' : ''}">
+                        <div class="info-card" style="${deal.isRush ? 'border-color:var(--accent-red); background:rgba(239, 68, 68, 0.05);' : (deal.isExport ? 'border-color:var(--accent-purple);' : '')} ${isSelected ? 'box-shadow: 0 0 0 2px var(--accent-blue);' : ''}">
                             <div class="card-title">
-                                🤝 طلب من: ${deal.client}
+                                <label style="display:flex; align-items:center; gap:6px; cursor:pointer; font-size:0.95rem;">
+                                    <input type="checkbox" ${isSelected ? 'checked' : ''} onchange="toggleDealSelection(${deal.id})" style="width:16px; height:16px; cursor:pointer;" />
+                                    🤝 ${deal.client}
+                                </label>
+                            </div>
+                            <div style="display:flex; gap:5px; flex-wrap:wrap;">
                                 ${deal.isRush ? `<span class="status-badge badge-rush">⚡ عاجل (${deal.rushTimer}ث)</span>` : ''}
                                 ${deal.isVip ? `<span class="status-badge badge-vip">⭐ عميل دائم</span>` : ''}
+                                ${deal.isExport ? `<span class="status-badge" style="background:rgba(139,92,246,0.2); color:var(--accent-purple); border:1px solid var(--accent-purple);">🌍 تصدير دولي</span>` : ''}
+                                ${deal.isRegional ? `<span class="status-badge" style="background:rgba(16,185,129,0.2); color:var(--accent-green); border:1px solid var(--accent-green);">📍 طلب إقليمي مرتفع</span>` : ''}
                             </div>
                             <div><b>المحافظة:</b> ${deal.govName} | <b>المنتج:</b> ${deal.productName}</div>
                             <div><b>الكمية:</b> ${deal.qty} كرتونة | <b>الشاحنة:</b> ${truckNameStr}</div>
@@ -1335,6 +2087,7 @@
                             <button class="action-btn buy-btn" ${!canExecute ? 'disabled' : ''} onclick="executeManualDeal(${deal.id})">
                                 ${!hasStock ? 'البضاعة غير متوفرة' : (!hasTruck ? 'لا تملك شاحنة متاحة' : (!hasDriver ? 'لا يوجد سائق' : 'قبول وشحن الطلب 🚚'))}
                             </button>
+                            ${canNegotiate ? `<button class="action-btn" style="background:var(--accent-purple); color:#fff; margin-top:6px;" onclick="negotiateDeal(${deal.id})">🤝 فاوض على السعر (صفقة كبيرة)</button>` : ''}
                         </div>
                     `;
                 });
@@ -1342,9 +2095,20 @@
 
             let seasonHeader = gameState.activeSeason ? `<div style="padding:10px; background:rgba(245, 158, 11, 0.2); border:1px solid var(--accent-gold); border-radius:10px; margin-bottom:15px; color:var(--accent-gold); font-weight:800;">🔥 ${gameState.activeSeason.name} مفعل حالياً! زيادة أرباح المبيعات.</div>` : '';
 
+            const sortBtn = (mode, label) => `<button class="action-btn" style="flex:1; background:${gameState.dealsSortMode === mode ? 'var(--accent-gold)' : 'var(--panel-bg)'}; color:${gameState.dealsSortMode === mode ? '#000' : 'var(--text-main)'}; border:1.5px solid var(--panel-border);" onclick="setDealsSortMode('${mode}')">${label}</button>`;
+
             container.innerHTML = `
                 <h2>🤝 السوق والصفقات الحية</h2>
                 ${seasonHeader}
+                <div style="display:flex; gap:8px; margin-bottom:12px;">
+                    ${sortBtn('default', '⏱️ الأحدث')}
+                    ${sortBtn('revenue', '💰 الأعلى ربحاً')}
+                    ${sortBtn('expiry', '⚡ الأقرب انتهاءً')}
+                </div>
+                <div style="display:flex; align-items:center; gap:10px; margin-bottom:14px; padding:10px; background:rgba(59, 130, 246, 0.08); border:1.5px dashed var(--accent-blue); border-radius:10px;">
+                    <span style="font-size:0.85rem; color:var(--text-muted);">📦 اختر صفقتين أو أكثر لنفس المحافظة ونفس نوع الشاحنة لشحنهم برحلة واحدة (${selectedDealIds.size} مختارة)</span>
+                    <button class="action-btn buy-btn" style="margin-top:0; width:auto; padding:8px 16px;" ${selectedDealIds.size < 2 ? 'disabled' : ''} onclick="executeBundledDeals()">شحن مجمّع 🚚</button>
+                </div>
                 <div class="card-grid">${dealsHtml}</div>
             `;
         }
