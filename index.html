@@ -2,11 +2,29 @@
 <html lang="ar" dir="rtl">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <meta name="screen-orientation" content="landscape">
     <meta name="orientation" content="landscape">
     <meta name="theme-color" content="#020617">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="format-detection" content="telephone=no">
     <title>محاكي التاجر الواقعي - Realistic Trader Simulator Pro</title>
+    <script>
+        // 📐 حساب الارتفاع الحقيقي للشاشة (يتخطى مشكلة شريط أدوات المتصفح المتحرك في الموبايل)
+        // يعمل قبل أي رسم للصفحة، ويتحدث تلقائياً عند تدوير الشاشة أو ظهور/اختفاء شريط المتصفح
+        (function() {
+            function setAppHeight() {
+                var h = (window.visualViewport ? window.visualViewport.height : window.innerHeight);
+                document.documentElement.style.setProperty('--app-height', h + 'px');
+            }
+            setAppHeight();
+            window.addEventListener('resize', setAppHeight);
+            window.addEventListener('orientationchange', function() { setTimeout(setAppHeight, 50); setTimeout(setAppHeight, 300); });
+            if (window.visualViewport) window.visualViewport.addEventListener('resize', setAppHeight);
+        })();
+    </script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@500;700;800;900&display=swap');
 
@@ -53,6 +71,8 @@
         html, body {
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
+            height: var(--app-height, 100dvh);
             background-color: #020617;
             color: var(--text-main);
             overflow: hidden; /* إخفاء أي مساطر تمرير خارجية */
@@ -66,6 +86,8 @@
             position: relative;
             width: 100vw;
             height: 100vh;
+            height: 100dvh;
+            height: var(--app-height, 100dvh);
             max-width: 100%;
             max-height: 100%;
             background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
@@ -81,6 +103,11 @@
             flex-direction: column; 
             background: var(--bg-dark); 
             z-index: 10; 
+            /* حماية المحتوى من الاختفاء خلف الحواف المنحنية أو النوتش أو أشرطة تنقل النظام */
+            padding-left: env(safe-area-inset-left, 0px);
+            padding-right: env(safe-area-inset-right, 0px);
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
         }
         .screen.hidden { display: none !important; }
 
@@ -95,7 +122,8 @@
 
         .modal-overlay {
             position: absolute; inset: 0; background: rgba(2, 6, 23, 0.88); backdrop-filter: blur(6px);
-            display: flex; justify-content: center; align-items: center; z-index: 200; padding: 15px;
+            display: flex; justify-content: center; align-items: center; z-index: 200;
+            padding: max(15px, env(safe-area-inset-top, 15px)) max(15px, env(safe-area-inset-right, 15px)) max(15px, env(safe-area-inset-bottom, 15px)) max(15px, env(safe-area-inset-left, 15px));
         }
         .modal-overlay.hidden { display: none !important; }
         
@@ -103,6 +131,7 @@
             background: var(--panel-bg); border: 2px solid var(--accent-gold); padding: 20px; border-radius: 14px;
             width: 100%; max-width: 420px; text-align: center; display: flex; flex-direction: column; gap: 12px;
             box-shadow: 0 15px 30px rgba(0,0,0,0.8); animation: slideIn 0.25s ease;
+            max-height: calc(var(--app-height, 100vh) - 40px); overflow-y: auto;
         }
         .modal-card.danger-modal { border-color: var(--accent-red); }
         
@@ -123,6 +152,8 @@
             justify-content: space-between; 
             align-items: center;
             flex-shrink: 0;
+            flex-wrap: wrap;
+            row-gap: 6px;
             gap: 10px;
         }
         
@@ -152,11 +183,12 @@
         }
         .month-progress-fill { height: 100%; background: var(--accent-gold); width: 0%; transition: width 1s linear; }
 
-        /* تخطيط اللعبة التفاعلي متجاوب للجوال */
+        /* تخطيط اللعبة التفاعلي متجاوب للجوال - يملأ المساحة المتبقية تلقائياً مهما كان ارتفاع الشريط العلوي */
         .dashboard-layout { 
             display: grid; 
             grid-template-columns: 210px 1fr; 
-            height: calc(100vh - 55px);
+            flex: 1;
+            min-height: 0;
             overflow: hidden;
         }
 
@@ -168,12 +200,14 @@
             flex-direction: column; 
             gap: 6px; 
             overflow-y: auto;
+            padding-bottom: calc(10px + env(safe-area-inset-bottom, 0px));
         }
         
         .nav-btn {
             background: var(--panel-bg); border: 1.5px solid var(--panel-border); color: var(--text-main);
             padding: 8px 12px; border-radius: 8px; font-size: 0.82rem; font-weight: 700; cursor: pointer;
             text-align: right; display: flex; align-items: center; justify-content: space-between; transition: all 0.15s;
+            min-height: 38px; flex-shrink: 0;
         }
         .nav-btn:hover { border-color: var(--accent-blue); background: rgba(59, 130, 246, 0.1); }
         .nav-btn.active {
@@ -186,6 +220,7 @@
             padding: 15px; 
             overflow-y: auto; 
             height: 100%; 
+            padding-bottom: calc(15px + env(safe-area-inset-bottom, 0px));
         }
 
         .card-grid { 
@@ -220,7 +255,7 @@
 
         @keyframes pulse { from { opacity: 0.7; } to { opacity: 1; } }
 
-        #toast-container { position: absolute; bottom: 15px; left: 15px; z-index: 300; display: flex; flex-direction: column; gap: 8px; }
+        #toast-container { position: absolute; bottom: calc(15px + env(safe-area-inset-bottom, 0px)); left: calc(15px + env(safe-area-inset-left, 0px)); z-index: 300; display: flex; flex-direction: column; gap: 8px; max-width: min(320px, calc(100vw - 30px)); }
         .toast-msg {
             background: rgba(30, 41, 59, 0.98); border: 1.5px solid var(--accent-blue); color: var(--text-main);
             padding: 10px 16px; border-radius: 8px; font-size: 0.82rem; font-weight: 700;
@@ -343,6 +378,9 @@
             display: flex; flex-direction: column;
             box-shadow: -10px 0 30px rgba(0,0,0,0.6);
             animation: guideSlideIn 0.25s ease;
+            padding-right: env(safe-area-inset-right, 0px);
+            padding-top: env(safe-area-inset-top, 0px);
+            padding-bottom: env(safe-area-inset-bottom, 0px);
         }
         @keyframes guideSlideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
         .guide-panel-header {
@@ -360,6 +398,48 @@
             background: rgba(59,130,246,0.15); border: 1.5px solid var(--accent-blue); color: var(--accent-blue);
             width: 30px; height: 30px; border-radius: 50%; font-weight: 800; cursor: pointer; flex-shrink: 0;
             display: flex; align-items: center; justify-content: center; font-size: 0.9rem;
+        }
+
+        /* ============================================
+           📱 تجاوب إضافي لشاشات الموبايل الضيقة/القصيرة
+           (يضمن ظهور كل حاجة بالكامل من غير أي قطع أو صعوبة وصول)
+           ============================================ */
+
+        /* شاشات عريضة أقل من 760px (أغلب الموبايلات بالوضع الأفقي) */
+        @media screen and (max-width: 760px) {
+            .dashboard-layout { grid-template-columns: 168px 1fr; }
+            .sidebar { padding: 8px; gap: 5px; }
+            .nav-btn { padding: 7px 10px; font-size: 0.76rem; min-height: 34px; }
+            .top-bar { padding: 6px 10px; }
+            .company-title { font-size: 0.85rem; }
+            .stat-pill { font-size: 0.72rem; padding: 3px 8px; }
+            .main-content { padding: 10px; }
+            .card-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+            .info-card { padding: 10px; font-size: 0.8rem; }
+            .start-inner h1 { font-size: 1.25rem !important; }
+        }
+
+        /* شاشات قصيرة الارتفاع أقل من 420px (شائعة جداً في وضع الموبايل الأفقي) */
+        @media screen and (max-height: 420px) {
+            .top-bar { padding: 5px 10px; }
+            .company-title { font-size: 0.82rem; }
+            .stat-pill { padding: 3px 7px; font-size: 0.7rem; }
+            .month-progress-bar { width: 40px; }
+            .sidebar { padding: 6px; gap: 4px; }
+            .nav-btn { padding: 6px 10px; font-size: 0.74rem; min-height: 30px; }
+            .main-content { padding: 8px; }
+            .modal-card { padding: 14px; gap: 8px; max-height: calc(var(--app-height, 100vh) - 30px); overflow-y: auto; }
+            .guide-panel-header { padding: 10px 14px; }
+            #start-screen .start-inner { padding: 10px; gap: 6px; }
+            #start-screen .start-inner div[style*="font-size:3rem"] { font-size: 1.6rem !important; }
+        }
+
+        /* شاشات ضيقة جداً (أقل من 480px) - قائمة جانبية أضيق أكتر لإفساح مجال حقيقي للمحتوى */
+        @media screen and (max-width: 480px) {
+            .dashboard-layout { grid-template-columns: 130px 1fr; }
+            .nav-btn { font-size: 0.68rem; padding: 6px 8px; }
+            .nav-btn span:last-child { display: none; } /* إخفاء الأيقونة الجانبية الزخرفية فقط للتوفير، النص الأساسي يفضل ظاهر */
+            .card-grid { grid-template-columns: 1fr; }
         }
     </style>
 </head>
@@ -476,6 +556,36 @@
             <div class="modal-actions">
                 <button class="menu-btn danger" onclick="executeGameReset()">نعم، امسح كل شيء 🗑️</button>
                 <button class="menu-btn" onclick="closeModal('reset-confirm-modal')">إلغاء</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 📖 مودال الأحداث القصصية بقرارات حقيقية -->
+    <div class="modal-overlay hidden" id="story-event-modal">
+        <div class="modal-card" style="border-color:var(--accent-purple);">
+            <h2 id="story-event-title" style="color:var(--accent-purple);"></h2>
+            <p id="story-event-desc" style="font-size:0.85rem; color:var(--text-muted);"></p>
+            <div id="story-event-choices" style="display:flex; flex-direction:column; gap:8px;"></div>
+        </div>
+    </div>
+
+    <!-- 🧾 مودال ملخص نهاية الشهر -->
+    <div class="modal-overlay hidden" id="recap-modal">
+        <div class="modal-card" style="border-color:var(--accent-blue);">
+            <h2 id="recap-title" style="color:var(--accent-blue);"></h2>
+            <div id="recap-body"></div>
+            <button class="menu-btn primary" onclick="closeModal('recap-modal')">متابعة 👍</button>
+        </div>
+    </div>
+
+    <!-- 👑 مودال تأكيد بدء إمبراطورية جديدة (Prestige) -->
+    <div class="modal-overlay hidden" id="prestige-confirm-modal">
+        <div class="modal-card" style="border-color:var(--accent-gold);">
+            <h2 style="color:var(--accent-gold);">👑 بدء إمبراطورية تجارية جديدة</h2>
+            <p style="font-size:0.85rem; color:var(--text-muted);">سيتم مسح كل تقدمك الحالي والبدء من جديد، مقابل الحصول على بونص دائم +10% على كل أرباحك للأبد، ورأس مال بداية أكبر. هل أنت متأكد؟</p>
+            <div class="modal-actions">
+                <button class="menu-btn primary" onclick="confirmPrestige()">نعم، ابدأ إمبراطورية جديدة 👑</button>
+                <button class="menu-btn" onclick="closeModal('prestige-confirm-modal')">إلغاء</button>
             </div>
         </div>
     </div>
@@ -600,6 +710,46 @@
                 <div class="guide-section">
                     <h3>🏆 المهام والمواسم والإنجازات</h3>
                     <p>مهام دورية، مواسم بتزود الطلب على منتجات معينة مؤقتاً، وإنجازات دائمة (زي أول مليون، أسطول ضخم، رواد التكنولوجيا، التاجر العالمي) بتديك مكافآت فورية.</p>
+                </div>
+
+                <div class="guide-section" style="border-color:var(--accent-purple);">
+                    <h3>🌟 سمعة الشركة (نظام جديد)</h3>
+                    <ul>
+                        <li>سمعة من 0-100 بتقل فعليًا لو أخّرت شحنة بطريقة مخالفة، فشلت في تنفيذ عقد عميل، أو انسحب عميل من مفاوضة، أو فوّت صفقة عاجلة.</li>
+                        <li>سمعة تحت 30: أرباح الصفقات -20% وعدد صفقات أقل. سمعة 30-45: أرباح -8%.</li>
+                        <li>سمعة 80 فأكثر: أرباح الصفقات <b>+15%</b> كمكافأة ثقة السوق.</li>
+                        <li>بتزيد بإتمام عقود العملاء والصفقات الدولية والقرارات النزيهة في الأحداث القصصية.</li>
+                    </ul>
+                </div>
+
+                <div class="guide-section" style="border-color:var(--accent-purple);">
+                    <h3>📖 الأحداث القصصية (نظام جديد)</h3>
+                    <p>كل شهر تقريباً، احتمال يظهرلك حدث بقرار حقيقي بين خيارين (زي طريق مختصر مخالف، مورد بضاعة مشبوه، تفتيش مفاجئ، أو موظف بيطلب زيادة) - كل خيار له مخاطرة ومكسب مختلف يؤثر فعليًا على فلوسك وسمعتك ومخزونك.</p>
+                </div>
+
+                <div class="guide-section" style="border-color:var(--accent-purple);">
+                    <h3>🏭 المخازن الفرعية (نظام جديد)</h3>
+                    <p>ابنِ مخزن فرعي في أي محافظة مفتوحة (بتكلفة تزيد مع بُعد المحافظة) عشان تسرّع زمن الشحن لها بنسبة 30% بشكل دائم - قرار استراتيجي "فين أوسّع" بدل ما توسع في كل حتة بالتساوي.</p>
+                </div>
+
+                <div class="guide-section" style="border-color:var(--accent-purple);">
+                    <h3>🏅 تنافس المندوبين (نظام جديد)</h3>
+                    <p>تبويب المبيعات بيرتب المندوبين حسب مبيعات الشهر الحالي بميداليات 🥇🥈🥉. آخر كل شهر، "مندوب الشهر" (الأعلى مبيعات) بياخد بونص نقدي إضافي لخزينة الشركة تقديراً لأدائه.</p>
+                </div>
+
+                <div class="guide-section" style="border-color:var(--accent-purple);">
+                    <h3>📊 الدورات الاقتصادية (نظام جديد)</h3>
+                    <p>السوق بيمر بفترات ازدهار (أرباح كل الصفقات +30%) أو ركود (أرباح -25%) لعدة أشهر بشكل عشوائي - يخليك تخطط للمدى البعيد وتستغل فترات الازدهار بدل إيقاع ثابت طول الوقت.</p>
+                </div>
+
+                <div class="guide-section" style="border-color:var(--accent-purple);">
+                    <h3>👑 إمبراطورية جديدة - Prestige (نظام جديد)</h3>
+                    <p>لما توصل لأقصى مرحلة (فتح كل المحافظات + توقيع كل العقود + الاستحواذ على المنافس)، تقدر تبدأ "إمبراطورية جديدة" من الصفر برأس مال بداية أكبر مقابل بونص دائم +10% على كل أرباحك للأبد يتراكم مع كل إمبراطورية جديدة.</p>
+                </div>
+
+                <div class="guide-section" style="border-color:var(--accent-purple);">
+                    <h3>🧾 ملخص نهاية الشهر (نظام جديد)</h3>
+                    <p>آخر كل شهر (10 دقايق) هتشوف شاشة ملخص سريعة بإجمالي إيراداتك، مصروفاتك، عدد الشحنات، أكثر منتج ربحلك، سمعتك الحالية، وحالة الاقتصاد - عشان تحس بتقدمك بوضوح بدل ما الأرقام تعدي من غير ما تلاحظها.</p>
                 </div>
 
                 <div class="guide-section">

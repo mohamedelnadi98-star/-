@@ -92,11 +92,11 @@
     const spoilRates = { dairy: 0.08, frozen: 0.10, bakery: 0.09, dryfood: 0.03, cleaners: 0, cosmetics: 0.01 };
 
     const governoratesData = [
-        { id: 'domyat', name: 'دمياط (المقر الرئيسي)', minLvl: 1, cost: 0, unlocked: true, bonus: 0, deliveryTime: 10 },
-        { id: 'dakahlia', name: 'الدقهلية (المنصورة)', minLvl: 2, cost: 120000, unlocked: false, bonus: 0.20, deliveryTime: 15 },
-        { id: 'sharqia', name: 'الشرقية (الزقازيق)', minLvl: 3, cost: 250000, unlocked: false, bonus: 0.20, deliveryTime: 20 },
-        { id: 'cairo', name: 'القاهرة الكبرى', minLvl: 4, cost: 500000, unlocked: false, bonus: 0.30, deliveryTime: 30 },
-        { id: 'alex', name: 'الإسكندرية', minLvl: 5, cost: 800000, unlocked: false, bonus: 0.35, deliveryTime: 35 }
+        { id: 'domyat', name: 'دمياط (المقر الرئيسي)', minLvl: 1, cost: 0, unlocked: true, bonus: 0, deliveryTime: 10, hasBranch: true, branchCost: 0 },
+        { id: 'dakahlia', name: 'الدقهلية (المنصورة)', minLvl: 2, cost: 120000, unlocked: false, bonus: 0.20, deliveryTime: 15, hasBranch: false, branchCost: 40000 },
+        { id: 'sharqia', name: 'الشرقية (الزقازيق)', minLvl: 3, cost: 250000, unlocked: false, bonus: 0.20, deliveryTime: 20, hasBranch: false, branchCost: 70000 },
+        { id: 'cairo', name: 'القاهرة الكبرى', minLvl: 4, cost: 500000, unlocked: false, bonus: 0.30, deliveryTime: 30, hasBranch: false, branchCost: 120000 },
+        { id: 'alex', name: 'الإسكندرية', minLvl: 5, cost: 800000, unlocked: false, bonus: 0.35, deliveryTime: 35, hasBranch: false, branchCost: 160000 }
     ];
 
     const defaultGameState = {
@@ -158,7 +158,6 @@
         insuranceActive: false,
         taxDue: 0,
         revenueHistory: [], // سجل إجمالي المبيعات آخر 12 شهر لرسم بياني النمو
-
         // ============ الميزات الجديدة (كسر الرتابة) ============
         incomingShipments: [], // شحنات واردة من الموردين لسه في الطريق للمخزن
         autoReorder: {
@@ -169,7 +168,15 @@
         regionalDemand: {}, // المنتج المطلوب بقوة في كل محافظة هذا الشهر
         clientContracts: [], // عقود عملاء طويلة المدى نشطة
         contractOffers: [],  // عروض عقود جديدة متاحة للتوقيع
-        exportDealsCompleted: 0 // عدد صفقات التصدير الدولي المكتملة
+        exportDealsCompleted: 0, // عدد صفقات التصدير الدولي المكتملة
+
+        // ============ اقتراحات كسر الملل الجديدة ============
+        reputation: 70, // سمعة الشركة (0-100): تؤثر فعلياً على قيمة وعدد الصفقات
+        lastStoryEventId: null, // آخر حدث قصصي ظهر (لتفادي التكرار المباشر)
+        economicCycle: { type: 'normal', monthsRemaining: 0 }, // دورة اقتصادية: normal / boom / recession
+        prestigeLevel: 0, // عدد مرات بدء إمبراطورية جديدة (Prestige)
+        prestigeBonus: 0, // نسبة البونص الدائم على كل الأرباح (%)
+        monthStats: { dealsCompleted: 0, revenueByProduct: {} } // إحصائيات الشهر الحالي لعرضها بملخص نهاية الشهر
     };
 
     let gameState = JSON.parse(JSON.stringify(defaultGameState));
@@ -214,6 +221,24 @@
         if (!Array.isArray(gameState.contractOffers)) gameState.contractOffers = [];
         if (gameState.exportDealsCompleted === undefined) gameState.exportDealsCompleted = 0;
         if (gameState.achievements && gameState.achievements.globalTrader === undefined) gameState.achievements.globalTrader = false;
+
+        // تطبيع الميزات الجديدة (سمعة/دورة اقتصادية/Prestige/مخازن فرعية/إحصائيات شهرية)
+        if (gameState.reputation === undefined) gameState.reputation = 70;
+        if (gameState.lastStoryEventId === undefined) gameState.lastStoryEventId = null;
+        if (!gameState.economicCycle) gameState.economicCycle = { type: 'normal', monthsRemaining: 0 };
+        if (gameState.prestigeLevel === undefined) gameState.prestigeLevel = 0;
+        if (gameState.prestigeBonus === undefined) gameState.prestigeBonus = 0;
+        if (!gameState.monthStats) gameState.monthStats = { dealsCompleted: 0, revenueByProduct: {} };
+        const branchCostMap = { domyat: 0, dakahlia: 40000, sharqia: 70000, cairo: 120000, alex: 160000 };
+        if (Array.isArray(gameState.governorates)) {
+            gameState.governorates.forEach(g => {
+                if (g.hasBranch === undefined) g.hasBranch = (g.id === 'domyat');
+                if (g.branchCost === undefined) g.branchCost = branchCostMap[g.id] !== undefined ? branchCostMap[g.id] : 50000;
+            });
+        }
+        if (Array.isArray(gameState.staff && gameState.staff.reps)) {
+            gameState.staff.reps.forEach(r => { if (r.monthSales === undefined) r.monthSales = 0; });
+        }
     }
 
     // ==========================================
@@ -453,6 +478,331 @@
         }
     }
 
+    // ==========================================
+    // 🌟 نظام سمعة الشركة: أول متغير في اللعبة بيقل فعليًا مش بس بيزيد
+    // ==========================================
+    function adjustReputation(delta) {
+        const before = gameState.reputation !== undefined ? gameState.reputation : 70;
+        const after = Math.max(0, Math.min(100, before + delta));
+        gameState.reputation = after;
+
+        if (delta < 0 && before >= 30 && after < 30) {
+            showToast("🚨 سمعة شركتك انهارت! ستلاحظ صفقات أقل وأقل قيمة حتى تستعيد ثقة السوق.", "error");
+        } else if (delta > 0 && before < 80 && after >= 80) {
+            showToast("🌟 سمعتك ممتازة الآن! عملاء جدد بدأوا يثقون بشركتك أكثر وأرباحك ارتفعت.", "achievement");
+        }
+        updateUI();
+    }
+
+    // ==========================================
+    // 📖 الأحداث القصصية: قرارات حقيقية بمخاطرة ومكسب، مش رسائل عابرة
+    // ==========================================
+    const storyEvents = [
+        {
+            id: 'shortcut',
+            title: '🛣️ طريق مختصر غير رسمي',
+            desc: 'أخبرك أحد السائقين عن طريق مختصر غير مرخّص يسرّع كل شحناتك الجارية حالياً بشكل كبير، لكنه مخالف وقد يعرضك لغرامة إذا تم ضبطك.',
+            choices: [
+                {
+                    label: '🚀 خد المخاطرة ونفّذ الطريق',
+                    resolve: () => {
+                        if (!gameState.activeDeliveries || gameState.activeDeliveries.length === 0) {
+                            return 'لا توجد شحنات جارية حالياً للاستفادة من الطريق المختصر.';
+                        }
+                        gameState.activeDeliveries.forEach(d => { d.timeLeft = Math.max(1, Math.round(d.timeLeft * 0.55)); });
+                        if (Math.random() < 0.4) {
+                            const fine = 15000;
+                            gameState.money = Math.max(0, gameState.money - fine);
+                            spawnFloatingNumber(-fine);
+                            adjustReputation(-6);
+                            return `⚠️ تم ضبط إحدى الشحنات على الطريق! دفعت غرامة ${fine.toLocaleString()} ج.م وتضررت سمعة شركتك.`;
+                        }
+                        return '✅ نجحت المخاطرة! وصلت كل شحناتك الجارية أسرع بكثير من المعتاد.';
+                    }
+                },
+                {
+                    label: '🛡️ ارفض والتزم بالطريق الرسمي',
+                    resolve: () => { adjustReputation(3); return '👍 حافظت على سمعة شركتك النظيفة، ولم يتأثر أي شيء في مواعيد الشحن.'; }
+                }
+            ]
+        },
+        {
+            id: 'shadySupplier',
+            title: '📦 مورد بضاعة مشكوك في مصدرها',
+            desc: 'عرض عليك تاجر مجهول بيع كمية بضاعة بسعر أقل بـ40% من السوق، لكن مصدرها غير موثّق ومخاطرة قانونية حقيقية.',
+            choices: [
+                {
+                    label: '💰 اشترِ بالمخاطرة (بضاعة مجانية إضافية)',
+                    resolve: () => {
+                        const products = Object.keys(productNames).filter(p => gameState.signedContracts[p]);
+                        if (products.length === 0) return 'لم يكن لديك أي عقود توريد موقعة للاستفادة من العرض، فتجاهلته.';
+                        const pid = products[Math.floor(Math.random() * products.length)];
+                        const bonusQty = 150;
+                        const currentStock = Object.values(gameState.warehouse.stock).reduce((a, b) => a + (b || 0), 0);
+                        const freeSpace = Math.max(0, (gameState.warehouse.capacity || 0) - currentStock);
+                        const addedQty = Math.min(bonusQty, freeSpace);
+                        gameState.warehouse.stock[pid] = (gameState.warehouse.stock[pid] || 0) + addedQty;
+                        adjustReputation(-10);
+                        if (Math.random() < 0.25) {
+                            const fine = 20000;
+                            gameState.money = Math.max(0, gameState.money - fine);
+                            spawnFloatingNumber(-fine);
+                            return `⚠️ اكتُشف مصدر البضاعة المشبوه! حصلت على ${addedQty} كرتونة ${productNames[pid]}، لكن دفعت غرامة ${fine.toLocaleString()} ج.م وتضررت سمعتك بشدة.`;
+                        }
+                        return `📦 حصلت على ${addedQty} كرتونة ${productNames[pid]} مجاناً تقريباً، لكن سمعة شركتك تضررت بسبب الصفقة المشبوهة.`;
+                    }
+                },
+                {
+                    label: '🚫 ارفض العرض المشبوه',
+                    resolve: () => { adjustReputation(3); return '👍 رفضت المخاطرة بسمعة شركتك مقابل مكسب سريع مشبوه.'; }
+                }
+            ]
+        },
+        {
+            id: 'vipDiscount',
+            title: '⭐ عميل دائم يطلب تخفيضاً طارئاً',
+            desc: 'اتصل بك أحد عملائك الدائمين يطلب خصماً فورياً على طلبه القادم مقابل التزامه المستمر معك.',
+            choices: [
+                {
+                    label: '🤝 وافق على الخصم',
+                    resolve: () => {
+                        const cost = Math.round(gameState.money * 0.02);
+                        gameState.money = Math.max(0, gameState.money - cost);
+                        spawnFloatingNumber(-cost);
+                        adjustReputation(5);
+                        return `تنازلت عن ${cost.toLocaleString()} ج.م كخصم فوري، لكن ثقة عملائك بك ارتفعت بشكل ملحوظ.`;
+                    }
+                },
+                {
+                    label: '❌ ارفض بأدب',
+                    resolve: () => 'رفضت الطلب بأدب، وبقيت الأمور كما هي دون أي تغيير.'
+                }
+            ]
+        },
+        {
+            id: 'inspection',
+            title: '📋 تفتيش مفاجئ من الجهات الرقابية',
+            desc: 'وصل مفتشون لفحص مقر شركتك فجأة. أحد الموظفين يقترح "تسهيل الأمور" بمبلغ بسيط بدل المخاطرة بالتفتيش الكامل.',
+            choices: [
+                {
+                    label: '💵 ادفع رسوم "تسهيل" (10,000 ج.م)',
+                    resolve: () => {
+                        const cost = 10000;
+                        gameState.money = Math.max(0, gameState.money - cost);
+                        spawnFloatingNumber(-cost);
+                        adjustReputation(-4);
+                        return `دفعت ${cost.toLocaleString()} ج.م لتفادي التفتيش، لكن هذا النوع من التعاملات أثّر سلباً على سمعة شركتك إن عُرف به أحد.`;
+                    }
+                },
+                {
+                    label: '📑 ارفض وواجه التفتيش بشفافية',
+                    resolve: () => {
+                        if (Math.random() < 0.35) {
+                            const fine = 22000;
+                            gameState.money = Math.max(0, gameState.money - fine);
+                            spawnFloatingNumber(-fine);
+                            return `للأسف ظهرت مخالفات بسيطة ودفعت غرامة ${fine.toLocaleString()} ج.م، لكن نزاهتك محفوظة.`;
+                        }
+                        adjustReputation(6);
+                        return '✅ اجتزت التفتيش بنجاح تام دون أي مخالفات! سمعتك كشركة نزيهة ارتفعت.';
+                    }
+                }
+            ]
+        },
+        {
+            id: 'staffRaise',
+            title: '👥 أحد موظفيك القدامى يطلب زيادة',
+            desc: 'جاءك أحد أقدم موظفيك (سائق أو مندوب) يطلب زيادة في مستحقاته، وإلا فسيفكر في ترك العمل.',
+            choices: [
+                {
+                    label: '💰 وافق على مكافأة تحفيزية (8,000 ج.م)',
+                    resolve: () => {
+                        const cost = 8000;
+                        gameState.money = Math.max(0, gameState.money - cost);
+                        spawnFloatingNumber(-cost);
+                        if (gameState.staff.reps.length > 0) {
+                            const r = gameState.staff.reps[Math.floor(Math.random() * gameState.staff.reps.length)];
+                            r.xp = (r.xp || 0) + 40;
+                        }
+                        return 'وافقت على منح مكافأة تحفيزية، وارتفعت معنويات فريقك وخبرته.';
+                    }
+                },
+                {
+                    label: '🚫 ارفض الطلب',
+                    resolve: () => {
+                        const roll = Math.random();
+                        if (roll < 0.3 && gameState.staff.drivers > 0) {
+                            gameState.staff.drivers--;
+                            return '😞 استقال أحد سائقيك بسبب رفض طلبه! انخفض عدد السائقين المتاحين لديك.';
+                        }
+                        return 'قَبِل الموظف الرفض على مضض واستمر في العمل، لكن الأجواء توترت قليلاً.';
+                    }
+                }
+            ]
+        }
+    ];
+
+    let currentStoryEvent = null;
+
+    function showStoryEventModal(ev) {
+        currentStoryEvent = ev;
+        document.getElementById('story-event-title').innerText = ev.title;
+        document.getElementById('story-event-desc').innerText = ev.desc;
+        const choicesContainer = document.getElementById('story-event-choices');
+        choicesContainer.innerHTML = '';
+        ev.choices.forEach((choice, idx) => {
+            const btn = document.createElement('button');
+            btn.className = 'menu-btn primary';
+            btn.innerText = choice.label;
+            btn.onclick = function() { window.resolveStoryEvent(idx); };
+            choicesContainer.appendChild(btn);
+        });
+        document.getElementById('story-event-modal').classList.remove('hidden');
+    }
+
+    window.resolveStoryEvent = function(idx) {
+        if (!currentStoryEvent) return;
+        const resultText = currentStoryEvent.choices[idx].resolve();
+        document.getElementById('story-event-modal').classList.add('hidden');
+        currentStoryEvent = null;
+        updateUI();
+        showToast(resultText, "info");
+    };
+
+    // نسبة ظهور حدث قصصي شهرياً (يتجنب تكرار نفس الحدث مرتين متتاليتين)
+    function maybeTriggerStoryEvent() {
+        if (Math.random() < 0.45) {
+            const available = storyEvents.filter(e => e.id !== gameState.lastStoryEventId);
+            const ev = available[Math.floor(Math.random() * available.length)];
+            gameState.lastStoryEventId = ev.id;
+            showStoryEventModal(ev);
+        }
+    }
+
+    // ==========================================
+    // 📊 الدورات الاقتصادية: ازدهار / ركود مؤقت يؤثر فعلياً على كل الصفقات
+    // ==========================================
+    function updateEconomicCycle() {
+        if (gameState.economicCycle.monthsRemaining > 0) {
+            gameState.economicCycle.monthsRemaining--;
+            if (gameState.economicCycle.monthsRemaining <= 0) {
+                gameState.economicCycle.type = 'normal';
+                showToast('📊 عاد السوق إلى وضعه الطبيعي بعد فترة التقلب الاقتصادي.', 'info');
+            }
+            return;
+        }
+        const roll = Math.random();
+        if (roll < 0.15) {
+            gameState.economicCycle = { type: 'boom', monthsRemaining: 2 + Math.floor(Math.random() * 2) };
+            showToast('🚀 ازدهار اقتصادي! السوق في انتعاش وأرباح كل الصفقات ترتفع 30% لعدة أشهر قادمة.', 'achievement');
+        } else if (roll < 0.30) {
+            gameState.economicCycle = { type: 'recession', monthsRemaining: 2 + Math.floor(Math.random() * 2) };
+            showToast('📉 ركود اقتصادي! تراجعت قيمة كل الصفقات بالسوق 25% مؤقتاً حتى يتعافى الاقتصاد.', 'error');
+        }
+    }
+
+    // ==========================================
+    // 🏅 تنافس المندوبين: تقييم مندوب الشهر ومنحه بونص فعلي
+    // ==========================================
+    function evaluateRepOfMonth() {
+        if (!gameState.staff.reps || gameState.staff.reps.length === 0) return;
+        let top = null;
+        gameState.staff.reps.forEach(r => {
+            if (!top || (r.monthSales || 0) > (top.monthSales || 0)) top = r;
+        });
+        if (top && (top.monthSales || 0) > 0) {
+            const bonus = Math.round(top.monthSales * 0.02);
+            gameState.money += bonus;
+            spawnFloatingNumber(bonus);
+            showToast(`🏅 مندوب الشهر: ${top.name}! حقق مبيعات ${top.monthSales.toLocaleString()} ج.م، وحصلت شركتك على بونص أداء إضافي ${bonus.toLocaleString()} ج.م.`, "achievement");
+        }
+        gameState.staff.reps.forEach(r => { r.monthSales = 0; });
+    }
+
+    // ==========================================
+    // 🏭 المخازن الفرعية بالمحافظات: تسريع الشحن للمحافظة المبني بها المخزن
+    // ==========================================
+    window.buildBranchWarehouse = function(govId) {
+        const gov = gameState.governorates.find(g => g.id === govId);
+        if (!gov) return;
+        if (!gov.unlocked) return showToast("يجب فتح المحافظة أولاً قبل بناء مخزن فرعي بها!", "error");
+        if (gov.hasBranch) return showToast("يوجد بالفعل مخزن فرعي بهذه المحافظة!", "error");
+        if (gameState.money < gov.branchCost) return showToast("الرصيد غير كاف لبناء مخزن فرعي بهذه المحافظة!", "error");
+
+        gameState.money -= gov.branchCost;
+        gov.hasBranch = true;
+        updateUI();
+        showToast(`🏭 تم بناء مخزن فرعي في ${gov.name}! زمن الشحن لهذه المحافظة أصبح أسرع بشكل دائم.`, "success");
+        showTab('map');
+    };
+
+    // ==========================================
+    // 👑 نظام Prestige: بدء إمبراطورية جديدة ببونص دائم بعد إتمام كل شيء
+    // ==========================================
+    function checkPrestigeEligibility() {
+        return gameState.governorates.every(g => g.unlocked)
+            && Object.values(gameState.signedContracts).every(v => v === true)
+            && gameState.aiCompetitor.isAcquired;
+    }
+
+    window.openPrestigeConfirm = function() {
+        if (!checkPrestigeEligibility()) return showToast("لم تستوفِ شروط بدء إمبراطورية جديدة بعد! افتح كل المحافظات، وقّع كل العقود، واستحوذ على المنافس أولاً.", "error");
+        document.getElementById('prestige-confirm-modal').classList.remove('hidden');
+    };
+
+    window.confirmPrestige = function() {
+        const newPrestigeLevel = (gameState.prestigeLevel || 0) + 1;
+        const newPrestigeBonus = (gameState.prestigeBonus || 0) + 10;
+        const playerName = gameState.playerName;
+
+        gameState = JSON.parse(JSON.stringify(defaultGameState));
+        gameState.playerName = playerName;
+        gameState.prestigeLevel = newPrestigeLevel;
+        gameState.prestigeBonus = newPrestigeBonus;
+        gameState.money = 500000 + (newPrestigeLevel * 100000);
+
+        normalizeGameState();
+        updateRegionalDemand();
+        closeModal('prestige-confirm-modal');
+        updateUI();
+        showTab('admin');
+        saveGameData(false);
+        showToast(`👑 بدأت إمبراطورية تجارية جديدة! إمبراطورية رقم ${newPrestigeLevel} - بونص دائم +${newPrestigeBonus}% على كل أرباحك للأبد!`, "achievement");
+    };
+
+    // ==========================================
+    // 🧾 ملخص نهاية الشهر
+    // ==========================================
+    function showMonthlyRecap(prevMonthNumber, totalExpenses, revenueThisMonth) {
+        const stats = gameState.monthStats || { dealsCompleted: 0, revenueByProduct: {} };
+        let topProduct = 'لا يوجد';
+        let topProductRevenue = 0;
+        Object.keys(stats.revenueByProduct).forEach(pid => {
+            if (stats.revenueByProduct[pid] > topProductRevenue) {
+                topProductRevenue = stats.revenueByProduct[pid];
+                topProduct = productNames[pid] || pid;
+            }
+        });
+
+        const cycleLabel = gameState.economicCycle.type === 'boom' ? '🚀 ازدهار اقتصادي'
+            : (gameState.economicCycle.type === 'recession' ? '📉 ركود اقتصادي' : '📊 وضع طبيعي');
+
+        document.getElementById('recap-title').innerText = `📊 ملخص الشهر ${prevMonthNumber}`;
+        document.getElementById('recap-body').innerHTML = `
+            <div style="display:flex; flex-direction:column; gap:6px; text-align:right; font-size:0.85rem;">
+                <div>💰 <b>إجمالي الإيرادات:</b> ${revenueThisMonth.toLocaleString()} ج.م</div>
+                <div>📉 <b>إجمالي المصروفات:</b> ${totalExpenses.toLocaleString()} ج.م</div>
+                <div>🚚 <b>شحنات مكتملة:</b> ${stats.dealsCompleted}</div>
+                <div>🏆 <b>أكثر منتج ربحاً:</b> ${topProduct} ${topProductRevenue > 0 ? `(${topProductRevenue.toLocaleString()} ج.م)` : ''}</div>
+                <div>🌟 <b>سمعة الشركة الحالية:</b> ${gameState.reputation}/100</div>
+                <div>${cycleLabel}</div>
+            </div>
+        `;
+        document.getElementById('recap-modal').classList.remove('hidden');
+
+        gameState.monthStats = { dealsCompleted: 0, revenueByProduct: {} };
+    }
+
     // 📉 تلف المخزون الراكد شهرياً حسب طبيعة كل منتج (يقل التأثير كثيراً مع غرفة التبريد)
     function applyInventorySpoilage() {
         let totalLost = 0;
@@ -502,12 +852,14 @@
                 gameState.money += revenue;
                 gameState.totalRevenueGenerated += revenue;
                 spawnFloatingNumber(revenue);
+                adjustReputation(1);
                 showToast(`🤝 نفّذت التزامك الشهري لعقد (${c.clientName}): ${revenue.toLocaleString()} ج.م.`, "success");
             } else {
                 const penalty = Math.round(c.qty * c.pricePerUnit * 0.10);
                 gameState.money = Math.max(0, gameState.money - penalty);
                 spawnFloatingNumber(-penalty);
-                showToast(`⚠️ لم يتوفر مخزون كافٍ من (${productNames[c.product] || c.product}) لتلبية عقد (${c.clientName})! غرامة إخلال: ${penalty.toLocaleString()} ج.م.`, "error");
+                adjustReputation(-8);
+                showToast(`⚠️ لم يتوفر مخزون كافٍ من (${productNames[c.product] || c.product}) لتلبية عقد (${c.clientName})! غرامة إخلال: ${penalty.toLocaleString()} ج.م، وتضررت سمعة شركتك.`, "error");
             }
 
             c.monthsRemaining--;
@@ -515,6 +867,7 @@
                 const completionBonus = Math.round(c.qty * c.pricePerUnit * 1.5);
                 gameState.money += completionBonus;
                 spawnFloatingNumber(completionBonus);
+                adjustReputation(4);
                 showToast(`🎉 انتهى عقد (${c.clientName}) بنجاح بعد ${c.totalMonths} أشهر من الالتزام! مكافأة إتمام العقد: ${completionBonus.toLocaleString()} ج.م.`, "achievement");
                 gameState.clientContracts.splice(i, 1);
             }
@@ -672,8 +1025,15 @@
                 AudioEngine.playMoneySound();
                 spawnFloatingNumber(finalRev);
 
+                if (!gameState.monthStats) gameState.monthStats = { dealsCompleted: 0, revenueByProduct: {} };
+                gameState.monthStats.dealsCompleted++;
+                if (delivery.product) {
+                    gameState.monthStats.revenueByProduct[delivery.product] = (gameState.monthStats.revenueByProduct[delivery.product] || 0) + finalRev;
+                }
+
                 if (delivery.isExport) {
                     gameState.exportDealsCompleted = (gameState.exportDealsCompleted || 0) + 1;
+                    adjustReputation(2);
                 }
 
                 if (delivery.client) {
@@ -685,6 +1045,7 @@
                     let commission = Math.round(finalRev * 0.04);
                     rep.unpaidCommission += commission;
                     rep.totalSales += finalRev;
+                    rep.monthSales = (rep.monthSales || 0) + finalRev;
                     rep.xp = (rep.xp || 0) + 15;
                     if (rep.xp >= 100) {
                         rep.skill++;
@@ -718,6 +1079,7 @@
                 d.rushTimer--;
                 if (d.rushTimer <= 0) {
                     gameState.marketDeals.splice(i, 1);
+                    adjustReputation(-2); // فوات صفقة عاجلة يترك انطباعاً سيئاً لدى العملاء المحتملين
                     if (gameState.currentTab === 'deals') showTab('deals');
                 }
             }
@@ -745,6 +1107,10 @@
         gameState.money -= totalExpenses;
         spawnFloatingNumber(-totalExpenses);
 
+        // احسب إيرادات الشهر المنتهي بالمقارنة بآخر نقطة مسجلة قبل هذا الشهر
+        const prevRecordedTotal = gameState.revenueHistory.length > 0 ? gameState.revenueHistory[gameState.revenueHistory.length - 1].total : 0;
+        const revenueThisMonth = gameState.totalRevenueGenerated - prevRecordedTotal;
+
         // تسجيل نقطة بيانات شهرية لرسم بياني نمو الأرباح (آخر 12 شهر فقط)
         gameState.revenueHistory.push({ month: gameState.month - 1, total: gameState.totalRevenueGenerated });
         if (gameState.revenueHistory.length > 12) gameState.revenueHistory.shift();
@@ -753,6 +1119,9 @@
             gameState.aiCompetitor.share = Math.min(40, gameState.aiCompetitor.share + 2);
         }
 
+        evaluateRepOfMonth();     // 🏅 مندوب الشهر وبونص أدائه
+        updateEconomicCycle();    // 📊 تحديث الدورة الاقتصادية (ازدهار/ركود)
+
         document.getElementById('game-month').innerText = gameState.month;
         updateUI();
         
@@ -760,6 +1129,9 @@
         showToast(`📆 انتهى الشهر ${gameState.month - 1}! الخصم الدوري: ${totalExpenses.toLocaleString()} ج.م.${loanMsg}`, loanPayment > 0 ? "info" : "error");
         
         if (gameState.currentTab === 'admin' || gameState.currentTab === 'finance') showTab(gameState.currentTab);
+
+        showMonthlyRecap(gameState.month - 1, totalExpenses, revenueThisMonth); // 🧾 ملخص نهاية الشهر
+        maybeTriggerStoryEvent(); // 📖 احتمال ظهور حدث قصصي بقرار حقيقي
     }
 
     function generateMarketDeal() {
@@ -768,6 +1140,7 @@
         let maxDeals = 6 + (gameState.marketingLevel * 2);
         if (gameState.techTree.app) maxDeals += 3; // تطبيق الموبايل يزود الصفقات المتاحة
         maxDeals += (gameState.office.level - 1) * 2; // تطوير المقر يزود طاقة استقبال الصفقات (+2 لكل مستوى)
+        if ((gameState.reputation !== undefined ? gameState.reputation : 70) < 30) maxDeals = Math.max(3, maxDeals - 2); // سمعة سيئة جداً تنفّر بعض العملاء
 
         if (gameState.marketDeals.length >= maxDeals) gameState.marketDeals.shift();
 
@@ -819,8 +1192,23 @@
         let baseDeliveryTime = selectedGov.deliveryTime;
         if (gameState.warehouse.hasAutoLoader) baseDeliveryTime = Math.round(baseDeliveryTime * 0.7);
         if (gameState.techTree.gps) baseDeliveryTime = Math.round(baseDeliveryTime * 0.85); // نظام GPS يقلل زمه الشحن
+        if (selectedGov.hasBranch) baseDeliveryTime = Math.round(baseDeliveryTime * 0.7); // مخزن فرعي بالمحافظة يسرّع الشحن ليها
+
+        // 🌟 تأثير سمعة الشركة: سمعة عالية = ربح إضافي وصفقات أكتر، سمعة واطية = عقاب فعلي
+        const reputation = gameState.reputation !== undefined ? gameState.reputation : 70;
+        let reputationBonus = 0;
+        if (reputation >= 80) reputationBonus = 0.15;
+        else if (reputation < 30) reputationBonus = -0.20;
+        else if (reputation < 45) reputationBonus = -0.08;
+
+        // 📊 الدورة الاقتصادية: ازدهار يرفع كل الأرباح مؤقتاً، ركود يخفضها
+        const cycleType = gameState.economicCycle ? gameState.economicCycle.type : 'normal';
+        const cycleMultiplier = cycleType === 'boom' ? 1.3 : (cycleType === 'recession' ? 0.75 : 1);
+
+        // 👑 بونص الإمبراطورية الدائم من نظام الـ Prestige
+        const prestigeMultiplier = 1 + ((gameState.prestigeBonus || 0) / 100);
         
-        let totalRev = Math.round(qty * pricePerUnit * gameState.marketingMultiplier * (1 + selectedGov.bonus + vipBonus + seasonBonus + regionalBonus) * rushMultiplier * exportMultiplier);
+        let totalRev = Math.round(qty * pricePerUnit * gameState.marketingMultiplier * (1 + selectedGov.bonus + vipBonus + seasonBonus + regionalBonus + reputationBonus) * rushMultiplier * exportMultiplier * cycleMultiplier * prestigeMultiplier);
 
         const newDeal = {
             id: Date.now() + Math.random(),
@@ -1374,6 +1762,7 @@
             skill: 1,
             xp: 0,
             totalSales: 0,
+            monthSales: 0,
             unpaidCommission: 0
         });
         updateUI();
@@ -1488,6 +1877,7 @@
         } else {
             const idx = gameState.marketDeals.findIndex(d => d.id === dealId);
             if (idx !== -1) gameState.marketDeals.splice(idx, 1);
+            adjustReputation(-3);
             showToast(`🚪 انسحب العميل (${deal.client}) من الصفقة بعد المفاوضة! حاول تقبل الصفقات الكبيرة بسرعة أكبر في المرة القادمة.`, "error");
         }
 
@@ -1613,6 +2003,26 @@
                             <button class="action-btn buy-btn" onclick="acquireCompetitor()">الاستحواذ والشراء الكامل (3,000,000 ج.م)</button>
                         ` : '<div style="color:var(--accent-green); font-weight:700;">أنت المحتكر الرئيسي لسوق التوزيع الآن!</div>'}
                     </div>
+                    <div class="info-card" style="border-color:${gameState.reputation >= 80 ? 'var(--accent-green)' : (gameState.reputation < 30 ? 'var(--accent-red)' : 'var(--panel-border)')};">
+                        <div class="card-title">🌟 سمعة الشركة</div>
+                        <div><b>المستوى الحالي:</b> ${gameState.reputation} / 100</div>
+                        <div class="month-progress-bar" style="width:100%; height:10px;"><div class="month-progress-fill" style="width:${gameState.reputation}%; background:${gameState.reputation >= 80 ? 'var(--accent-green)' : (gameState.reputation < 30 ? 'var(--accent-red)' : 'var(--accent-gold)')};"></div></div>
+                        <div style="font-size:0.78rem; color:var(--text-muted); margin-top:6px;">
+                            ${gameState.reputation >= 80 ? '✅ سمعة ممتازة: أرباح صفقات +15%' : (gameState.reputation < 30 ? '🚨 سمعة سيئة جداً: أرباح -20% وصفقات أقل' : (gameState.reputation < 45 ? '⚠️ سمعة ضعيفة: أرباح -8%' : 'سمعة متوسطة: بدون تأثير'))}
+                        </div>
+                    </div>
+                    <div class="info-card" style="border-color:${gameState.economicCycle.type === 'boom' ? 'var(--accent-green)' : (gameState.economicCycle.type === 'recession' ? 'var(--accent-red)' : 'var(--panel-border)')};">
+                        <div class="card-title">📊 حالة الاقتصاد</div>
+                        <div>${gameState.economicCycle.type === 'boom' ? '🚀 ازدهار اقتصادي: أرباح الصفقات +30%' : (gameState.economicCycle.type === 'recession' ? '📉 ركود اقتصادي: أرباح الصفقات -25%' : '📊 وضع طبيعي')}</div>
+                        ${gameState.economicCycle.type !== 'normal' ? `<div style="font-size:0.78rem; color:var(--text-muted);">يتبقى ${gameState.economicCycle.monthsRemaining} شهر تقريباً</div>` : ''}
+                    </div>
+                    <div class="info-card" style="border-color:var(--accent-gold);">
+                        <div class="card-title">👑 إمبراطورية جديدة (Prestige)</div>
+                        <div>مستوى الإمبراطورية الحالي: ${gameState.prestigeLevel || 0}</div>
+                        <div>البونص الدائم على كل الأرباح: <b style="color:var(--accent-gold)">+${gameState.prestigeBonus || 0}%</b></div>
+                        <div style="font-size:0.78rem; color:var(--text-muted);">الشرط: فتح كل المحافظات + توقيع كل العقود + الاستحواذ على المنافس</div>
+                        <button class="action-btn buy-btn" onclick="openPrestigeConfirm()">👑 بدء إمبراطورية تجارية جديدة</button>
+                    </div>
                     <div class="info-card">
                         <div class="card-title">📊 نمو إجمالي المبيعات</div>
                         ${buildRevenueChartSVG()}
@@ -1649,7 +2059,14 @@
                                 onclick="unlockGovernorate('${g.id}')">
                                 ${canUnlock ? 'توسيع التوزيع وشراء التجميع 🚀' : `يتطلب مستوى ${g.minLvl}`}
                             </button>
-                        ` : `<div style="color:var(--accent-green); font-weight:700; font-size:0.85rem; text-align:center; padding:8px; background:rgba(16,185,129,0.1); border-radius:8px;">✅ مركز التوزيع يعمل بكفاءة</div>`}
+                        ` : `
+                            <div style="color:var(--accent-green); font-weight:700; font-size:0.85rem; text-align:center; padding:8px; background:rgba(16,185,129,0.1); border-radius:8px;">✅ مركز التوزيع يعمل بكفاءة</div>
+                            ${g.hasBranch ? `
+                                <div style="color:var(--accent-blue); font-weight:700; font-size:0.8rem; text-align:center; padding:6px; background:rgba(59,130,246,0.1); border-radius:8px; margin-top:6px;">🏭 مخزن فرعي نشط - شحن أسرع 30% لهذه المحافظة</div>
+                            ` : (g.branchCost > 0 ? `
+                                <button class="action-btn upgrade-btn" style="margin-top:6px;" onclick="buildBranchWarehouse('${g.id}')">🏭 بناء مخزن فرعي (${g.branchCost.toLocaleString()} ج.م)</button>
+                            ` : '')}
+                        `}
                     </div>
                 `;
             });
@@ -1662,13 +2079,22 @@
             if(gameState.staff.reps.length === 0) {
                 repsHtml = `<div style="color:var(--text-muted)">لا يوجد مندوبون مبيعات معينون حالياً. قُم بتعيينهم من إدارة التوظيف!</div>`;
             } else {
-                gameState.staff.reps.forEach((rep, idx) => {
+                const medals = ['🥇', '🥈', '🥉'];
+                const ranked = gameState.staff.reps
+                    .map((rep, idx) => ({ rep, idx }))
+                    .sort((a, b) => (b.rep.monthSales || 0) - (a.rep.monthSales || 0));
+
+                ranked.forEach((item, rank) => {
+                    const rep = item.rep;
+                    const idx = item.idx;
                     const xp = rep.xp || 0;
+                    const medal = (rep.monthSales || 0) > 0 && medals[rank] ? medals[rank] + ' ' : '';
                     repsHtml += `
                         <div class="info-card">
-                            <div class="card-title">👨‍💼 ${rep.name} (Level ${rep.skill})</div>
+                            <div class="card-title">${medal}👨‍💼 ${rep.name} (Level ${rep.skill})</div>
                             <div><b>نقاط الخبرة (XP):</b> ${xp} / 100</div>
                             <div class="month-progress-bar" style="width:100%; height:8px;"><div class="month-progress-fill" style="width:${xp}%;"></div></div>
+                            <div><b>مبيعات هذا الشهر:</b> ${(rep.monthSales || 0).toLocaleString()} ج.م</div>
                             <div><b>إجمالي مبيعات المندوب:</b> ${rep.totalSales.toLocaleString()} ج.م</div>
                             <div><b>عمولات معلقة غير مصروفة:</b> <b style="color:var(--accent-gold)">${rep.unpaidCommission.toLocaleString()} ج.م</b></div>
                             <button class="action-btn buy-btn" onclick="payCommission(${idx})" ${rep.unpaidCommission <= 0 ? 'disabled' : ''}>صرف العمولة المستحقة 💸</button>
